@@ -1,26 +1,762 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#6366f1">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Gastos">
-  <title>Gastos App</title>
-  <link rel="manifest" href="/manifest.json">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💸</text></svg>">
-  <link rel="stylesheet" href="styles.css?v=3">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#378ADD">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gastos">
+<title>Gastos del Hogar</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f0f2f5;color:#1a1a1a;font-size:14px;}
+.header{background:#fff;border-bottom:1px solid #e5e5e5;padding:1rem 1.5rem;display:flex;align-items:center;position:sticky;top:0;z-index:100;}
+.tabs{display:flex;background:#fff;border-bottom:1px solid #e5e5e5;padding:0 1rem;overflow-x:auto;}
+.tab{padding:10px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:#888;user-select:none;white-space:nowrap;}
+.tab.active{color:#1a1a1a;border-bottom-color:#378ADD;font-weight:500;}
+.tab-badge{display:inline-block;background:#fdecea;color:#c0392b;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;}
+.container{max-width:1140px;margin:0 auto;padding:1.25rem;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center;background:#fff;padding:.875rem 1rem;border-radius:10px;border:1px solid #e5e5e5;}
+.filters label{font-size:12px;color:#888;}
+.filters select{font-size:13px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;}
+@media(max-width:800px){.grid2,.grid4{grid-template-columns:1fr 1fr;}}
+@media(max-width:500px){.grid2,.grid4{grid-template-columns:1fr;}}
+.card{background:#fff;border-radius:10px;border:1px solid #e5e5e5;padding:1.1rem;margin-bottom:12px;}
+.card-title{font-size:11px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.875rem;}
+.chart-wrap{position:relative;width:100%;height:240px;}
+.chart-wrap.tall{height:300px;}
+.chart-wrap.short{height:200px;}
+.kpi{background:#fff;border-radius:10px;border:1px solid #e5e5e5;padding:1rem;}
+.kpi-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+.kpi-value{font-size:24px;font-weight:500;line-height:1.1;margin-bottom:4px;}
+.kpi-sub{font-size:12px;color:#888;}
+.kpi-delta{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:500;padding:2px 7px;border-radius:5px;margin-top:5px;}
+.delta-up{background:#fdecea;color:#c0392b;}
+.delta-down{background:#e8f8f2;color:#1D9E75;}
+.delta-neu{background:#f5f5f5;color:#888;}
+.var-table{width:100%;border-collapse:collapse;}
+.var-table th{font-size:11px;color:#888;text-transform:uppercase;padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:left;}
+.var-table td{padding:8px;border-bottom:1px solid #f8f8f8;font-size:13px;vertical-align:middle;}
+.var-table tr:last-child td{border-bottom:none;}
+.bar-wrap{width:100%;background:#f0f0f0;border-radius:3px;height:6px;overflow:hidden;}
+.bar-fill{height:6px;border-radius:3px;}
+.pill{display:inline-block;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:500;}
+.pill-up{background:#fdecea;color:#c0392b;}
+.pill-down{background:#e8f8f2;color:#1D9E75;}
+.pill-neu{background:#f5f5f5;color:#888;}
+.pend-item{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:1rem;margin-bottom:10px;}
+.pend-item.guardado{border-color:#1D9E75;background:#f0faf6;}
+.pend-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+.pend-periodo{font-size:11px;color:#aaa;background:#f5f5f5;padding:2px 8px;border-radius:4px;}
+.pend-dest{font-weight:500;font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pend-monto{font-size:16px;font-weight:500;color:#378ADD;white-space:nowrap;}
+.pend-detalle{font-size:11px;color:#aaa;margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.form-group label{font-size:11px;color:#888;display:block;margin-bottom:3px;}
+.form-group select,.form-group input[type=text],.form-group input[type=number],.form-group input[type=date]{width:100%;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;}
+.form-group select:focus,.form-group input:focus{outline:none;border-color:#378ADD;}
+.mapeo-check{display:flex;align-items:center;gap:6px;font-size:12px;color:#666;margin-top:8px;}
+.mapeo-check input{width:14px;height:14px;}
+.btn-guardar{padding:7px 18px;border-radius:6px;border:none;font-size:13px;cursor:pointer;font-weight:500;background:#378ADD;color:#fff;}
+.btn-guardar:hover{background:#2970c0;}
+.btn-guardar:disabled{background:#aaa;cursor:not-allowed;}
+.btn-secondary{padding:7px 18px;border-radius:6px;border:1px solid #ddd;font-size:13px;cursor:pointer;font-weight:500;background:#fff;color:#555;}
+.btn-secondary:hover{background:#f5f5f5;}
+.badge-danger{background:#fdecea;color:#c0392b;display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;}
+.err{background:#fdecea;color:#c0392b;padding:1rem;border-radius:8px;font-size:13px;margin-bottom:1rem;}
+.ok-msg{background:#e8f8f2;color:#1D9E75;padding:1rem;border-radius:8px;font-size:13px;margin-bottom:1rem;}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid #ddd;border-top-color:#378ADD;border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+button.refresh{padding:6px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:13px;cursor:pointer;margin-left:auto;}
+.empty{text-align:center;padding:3rem;color:#aaa;font-size:13px;}
+.nuevo-tag{font-size:10px;background:#e8f3ff;color:#378ADD;padding:1px 5px;border-radius:3px;}
+.medio-badge{font-size:11px;padding:2px 7px;border-radius:4px;margin-left:6px;}
+.medio-visa{background:#e8f0fe;color:#3c4aad;}
+.medio-mp{background:#fff3e0;color:#e67e22;}
+
+/* ── Loading overlay ── */
+#loading-overlay{position:fixed;inset:0;background:#f0f2f5;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;}
+#loading-overlay.hidden{display:none;}
+#loading-overlay .load-icon{font-size:52px;}
+#loading-overlay .load-text{font-size:15px;color:#888;}
+#loading-overlay .load-sub{font-size:12px;color:#aaa;}
+
+/* ── Category tap buttons (improved classify) ── */
+.cat-pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:4px 0 8px;}
+.cat-pick-btn{padding:7px 4px;border:1.5px solid #ddd;border-radius:7px;background:#fff;color:#555;font-size:11px;font-weight:600;cursor:pointer;transition:all .12s;text-align:center;line-height:1.35;-webkit-tap-highlight-color:transparent;}
+.cat-pick-btn:active{transform:scale(0.95);}
+.cat-pick-btn.selected{color:#fff;border-color:transparent;}
+
+/* ── Hogar tap buttons ── */
+.hogar-pick-row{display:flex;gap:5px;flex-wrap:wrap;margin:4px 0 8px;}
+.hogar-pick-btn{padding:5px 12px;border-radius:20px;border:1.5px solid #ddd;background:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;color:#555;-webkit-tap-highlight-color:transparent;}
+.hogar-pick-btn:active{transform:scale(0.95);}
+.hogar-pick-btn.selected{background:#378ADD;border-color:#378ADD;color:#fff;}
+
+/* ── Classify card layout ── */
+.pend-form-new{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
+@media(max-width:520px){.pend-form-new{grid-template-columns:1fr;}}
+.pend-form-new .full-col{grid-column:1/-1;}
+</style>
 </head>
 <body>
-  <div id="app">
-    <div style="display:flex;align-items:center;justify-content:center;height:100dvh;flex-direction:column;gap:16px">
-      <div style="font-size:52px">💸</div>
-      <div style="font-size:16px;color:#94a3b8">Cargando...</div>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="load-icon">💸</div>
+  <div class="load-text">Cargando datos...</div>
+  <div class="spinner" style="width:24px;height:24px;border-width:3px;margin:0"></div>
+  <div class="load-sub" id="loadingSub"></div>
+</div>
+
+<div class="header">
+  <div>
+    <div style="font-size:17px;font-weight:500">Gastos del Hogar</div>
+    <div style="font-size:12px;color:#888" id="headerPeriodo"></div>
+  </div>
+  <button class="refresh" onclick="recargar()"><span class="spinner" id="spinnerBtn" style="display:none"></span>Actualizar</button>
+</div>
+<div class="tabs">
+  <div class="tab active" id="tabAnalisis" onclick="switchTab('analisis')">Análisis</div>
+  <div class="tab" id="tabHistorico" onclick="switchTab('historico')">Histórico</div>
+  <div class="tab" id="tabProveedor" onclick="switchTab('proveedor')">Por proveedor</div>
+  <div class="tab" id="tabAgregar" onclick="switchTab('agregar')">+ Agregar</div>
+  <div class="tab" id="tabClasificar" onclick="switchTab('clasificar')">Clasificar <span class="tab-badge" id="tabBadge" style="display:none"></span></div>
+</div>
+<div class="container">
+  <div id="errMsg" class="err" style="display:none"></div>
+
+  <!-- ANALISIS -->
+  <div id="tab-analisis" class="tab-content active">
+    <div class="filters">
+      <label>Hogar</label>
+      <select id="filtroHogarA" onchange="renderAnalisis()"><option value="todos">Todos</option></select>
+      <label style="margin-left:8px">Medio</label>
+      <select id="filtroMedioA" onchange="renderAnalisis()">
+        <option value="todos">Todos</option>
+        <option value="Efectivo">Efectivo</option>
+        <option value="Visa">Visa</option>
+        <option value="MP">Mercado Pago</option>
+        <option value="Mail">Facturas</option>
+      </select>
+    </div>
+    <div class="grid4" id="kpiRow"></div>
+    <div class="grid2">
+      <div class="card"><div class="card-title" id="titleActual">Mes actual</div><div class="chart-wrap short"><canvas id="chartCatActual"></canvas></div></div>
+      <div class="card"><div class="card-title" id="titleAnterior">Mes anterior</div><div class="chart-wrap short"><canvas id="chartCatAnterior"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Variación por categoría</div>
+      <div style="overflow-x:auto"><table class="var-table"><thead><tr>
+        <th>Categoría</th><th style="text-align:right">Anterior</th><th style="text-align:right">Actual</th><th style="text-align:right">Variación</th><th style="width:100px">Barra</th>
+      </tr></thead><tbody id="varBody"></tbody></table></div>
+    </div>
+    <div class="card"><div class="card-title">Actual vs promedio 3 meses</div><div class="chart-wrap"><canvas id="chartVsProm"></canvas></div></div>
+  </div>
+
+  <!-- HISTORICO -->
+  <div id="tab-historico" class="tab-content">
+    <div class="filters">
+      <label>Año</label>
+      <select id="filtroAnioH" onchange="renderHistorico()"><option value="todos">2025+2026</option><option value="2025">2025</option><option value="2026">2026</option></select>
+      <label style="margin-left:8px">Hogar</label>
+      <select id="filtroHogarH" onchange="renderHistorico()"><option value="todos">Todos</option></select>
+      <label style="margin-left:8px">Categoría</label>
+      <select id="filtroCategH" onchange="renderHistorico()"><option value="todas">Todas</option></select>
+    </div>
+    <div class="card"><div class="card-title">Evolución mensual por categoría</div><div class="chart-wrap tall"><canvas id="chartHistorico"></canvas></div></div>
+    <div class="card"><div class="card-title">Top 10 proveedores</div><div class="chart-wrap" id="wrapProv" style="height:320px"><canvas id="chartProv"></canvas></div></div>
+  </div>
+
+  <!-- POR PROVEEDOR -->
+  <div id="tab-proveedor" class="tab-content">
+    <div class="filters">
+      <label>Proveedor</label>
+      <select id="filtroProvEvol" onchange="renderProveedor()"><option value="">Elegir...</option></select>
+      <label style="margin-left:8px">Hogar</label>
+      <select id="filtroHogarP" onchange="renderProveedor()"><option value="todos">Todos</option></select>
+    </div>
+    <div class="card"><div class="card-title" id="titleProvEvol">Evolución mensual</div><div class="chart-wrap tall"><canvas id="chartProvEvol"></canvas></div></div>
+    <div class="card">
+      <div class="card-title">Variación mes a mes</div>
+      <div style="overflow-x:auto"><table class="var-table"><thead><tr>
+        <th>Período</th><th style="text-align:right">Monto</th><th style="text-align:right">vs mes anterior</th>
+      </tr></thead><tbody id="provEvolBody"></tbody></table></div>
     </div>
   </div>
-  <script src="classifier.js?v=3"></script>
-  <script src="api.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+
+  <!-- AGREGAR GASTO -->
+  <div id="tab-agregar" class="tab-content">
+    <div class="card" style="max-width:600px;margin:0 auto;">
+      <div class="card-title">Nuevo gasto manual</div>
+      <div id="agregarOkMsg" class="ok-msg" style="display:none"></div>
+      <div id="agregarErrMsg" class="err" style="display:none"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div class="form-group">
+          <label>Monto *</label>
+          <input type="number" id="gMonto" placeholder="Ej: 5000" min="1">
+        </div>
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" id="gFecha">
+        </div>
+        <div class="form-group">
+          <label>Proveedor / Rubro *</label>
+          <select id="gProveedor" onchange="onGProvChange()">
+            <option value="">Elegir...</option>
+          </select>
+        </div>
+        <div class="form-group" id="gCatWrap">
+          <label>Categoría</label>
+          <select id="gCategoria">
+            <option value="Variable">Variable</option>
+            <option value="Recurrente">Recurrente</option>
+            <option value="Servicio">Servicio</option>
+            <option value="Impuesto">Impuesto</option>
+            <option value="Entretenimiento">Entretenimiento</option>
+            <option value="Supermercado">Supermercado</option>
+            <option value="Salud">Salud</option>
+            <option value="Educacion">Educacion</option>
+            <option value="Otros">Otros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Hogar *</label>
+          <select id="gHogar">
+            <option value="SMDT">SMDT</option>
+            <option value="Mendoza">Mendoza</option>
+            <option value="Bella Vista">Bella Vista</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Persona</label>
+          <select id="gPersona">
+            <option value="">Ambos</option>
+            <option value="Sole">Sole</option>
+            <option value="Tomi">Tomi</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Detalle (opcional)</label>
+          <input type="text" id="gDetalle" placeholder="Ej: Super Dia, farmacia, taxi...">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-guardar" id="btnAgregarGasto" onclick="guardarGastoManual()">Guardar gasto</button>
+        <button class="btn-secondary" onclick="limpiarFormGasto()">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLASIFICAR -->
+  <div id="tab-clasificar" class="tab-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+      <div style="font-size:13px;color:#888" id="pendCount">Registros pendientes</div>
+      <select id="filtroClasif" onchange="renderClasificar()" style="font-size:13px;padding:5px 8px;border:1px solid #ddd;border-radius:6px">
+        <option value="todos">Todos</option>
+        <option value="sinmonto">Sin monto</option>
+        <option value="transferencia">Transferencias MP</option>
+        <option value="santander">Visa Santander</option>
+      </select>
+    </div>
+    <div id="pendList"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── API ──────────────────────────────────────────────────────────────────────
+const API_URL = 'https://script.google.com/macros/s/AKfycbyxkBwOV7qAJTV9HjrOyu1CBaSbqUXIHTECEx1Ljaa-BgY0DO27ZhwHfBfiZmNXLldV/exec';
+
+async function apiGet(params) {
+  const url = API_URL + '?' + new URLSearchParams({...params, _t: Date.now()});
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+// google.script.run shim — keeps all original save/classify code working unchanged
+class GAS {
+  constructor(ok, err) { this._ok = ok || null; this._err = err || null; }
+  withSuccessHandler(fn) { return new GAS(fn, this._err); }
+  withFailureHandler(fn) { return new GAS(this._ok, fn); }
+  _run(params) {
+    apiGet(params)
+      .then(j => { if (j.ok === false) throw new Error(j.error || 'Error del servidor'); if (this._ok) this._ok(j); })
+      .catch(e => { if (this._err) this._err(e); else console.error(e); });
+  }
+  agregarGastoManualFromDashboard(p) {
+    this._run({action:'agregarGasto', monto:p.monto, fecha:p.fecha, proveedor:p.proveedor||'', categoria:p.categoria||'Variable', hogar:p.hogar||'', persona:p.persona||'', detalle:p.detalle||''});
+  }
+  clasificarFilaFromDashboard(p) {
+    this._run({action:'clasificar', gmailId:p.gmailId, proveedor:p.proveedor||'', categoria:p.categoria||'Variable', hogar:p.hogar||'', destinatario:p.destinatario||'', guardarEnMapeo:p.guardarEnMapeo?'true':'false', esRubroNuevo:p.esRubroNuevo?'true':'false'});
+  }
+}
+const google = { script: { run: new GAS() } };
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const CAT_COLORS = {"Variable":"#378ADD","Recurrente":"#1D9E75","Servicio":"#D85A30","Impuesto":"#BA7517","Entretenimiento":"#D4537E","Supermercado":"#639922","Salud":"#7F77DD","Educacion":"#534AB7","Otros":"#888780"};
+const CATEGORIAS = Object.keys(CAT_COLORS);
+const HOGARES = ["SMDT","Mendoza","Bella Vista","General"];
+const PALETTE = Object.values(CAT_COLORS);
+const catFallback = {"Agua":"Recurrente","ARBA":"Impuesto","Colegio Santa Teresa":"Educacion","Empleada domestica":"Recurrente","Edenor":"Servicio","Expensas":"Servicio","Farnacia":"Variable","Flow":"Servicio","Impuestos Tigre":"Impuesto","Jardin Santa Cecilia":"Educacion","Jardin Ta te ti":"Educacion","Jardinero":"Recurrente","Lucia":"Recurrente","Movistar":"Servicio","Monotributo":"Impuesto","Naturgy":"Servicio","Otro":"Variable","Patente Autos":"Impuesto","Paseador":"Recurrente","Piletero":"Recurrente","Salidas":"Variable","Seguros Auto":"Servicio","Supermercado":"Supermercado","Verduleria":"Variable"};
+
+let allData = [], proveedoresSheet = [], provCatMap = {};
+let chartCatA, chartCatAnt, chartVsProm, chartHist, chartProv2, chartProvEvol;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function parseMonto(v){if(v===null||v===undefined||v==="")return null;if(typeof v==="number")return isFinite(v)&&v>0?v:null;const s=String(v).trim().replace(/\s/g,"").replace("$","");if(!s)return null;let n;if(s.includes(",")&&s.includes("."))n=parseFloat(s.replace(/\./g,"").replace(",","."));else if(s.includes(","))n=parseFloat(s.replace(",","."));else if(s.includes(".")){const p=s.split(".");n=p[p.length-1].length<=2?parseFloat(s):parseFloat(s.replace(/\./g,""));}else n=parseFloat(s);return(n&&isFinite(n)&&n>0)?n:null;}
+function getPeriodo(r){let p=String(r["Periodo"]||"").trim();if(!p)return"";const parts=p.split("-");if(parts.length>=2)return parts[0]+"-"+parts[1].padStart(2,"0");return p;}
+function fmt(n){return"$"+Math.round(n).toLocaleString("es-AR");}
+function fmtK(n){return n>=1000000?"$"+(n/1000000).toFixed(1)+"M":n>=1000?"$"+(n/1000).toFixed(0)+"k":fmt(n);}
+function getPeriodoActual(d){const p=[...new Set(d.map(r=>getPeriodo(r)).filter(Boolean))].sort();return p[p.length-1]||"";}
+function getPeriodoAnterior(a){if(!a)return"";const[y,m]=a.split("-").map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
+function getPeriodosUltimos3(a){const res=[];let[y,m]=a.split("-").map(Number);for(let i=1;i<=3;i++){m--;if(m===0){m=12;y--;}res.push(y+"-"+String(m).padStart(2,"0"));}return res;}
+function esInterno(r){return r["Categoria"]==="Interno"||r["Proveedor"]==="Interno";}
+function sumarPorCat(rows){const r={};rows.forEach(row=>{if(esInterno(row))return;const c=row["Categoria"]||"Otros";const m=parseMonto(row["Monto"])||0;r[c]=(r[c]||0)+m;});return r;}
+function sumarPorProv(rows){const r={};rows.forEach(row=>{if(esInterno(row))return;const p=row["Proveedor"]||"";if(!p)return;const m=parseMonto(row["Monto"])||0;r[p]=(r[p]||0)+m;});return r;}
+function filterHogar(d,h){return h==="todos"?d:d.filter(r=>r["Hogar"]===h);}
+function filterMedio(d,m){if(m==="todos")return d;if(m==="Efectivo")return d.filter(r=>r["Medio_Pago"]==="Efectivo");if(m==="Visa")return d.filter(r=>String(r["Medio_Pago"]||"").includes("Visa"));if(m==="MP")return d.filter(r=>r["Origen"]==="MP");if(m==="Mail")return d.filter(r=>r["Origen"]==="Mail");return d;}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const overlay = document.getElementById('loading-overlay');
+  const sub = document.getElementById('loadingSub');
+  overlay.classList.remove('hidden');
+
+  try {
+    sub.textContent = 'Conectando con la hoja...';
+    const [datosRes, provsRes] = await Promise.all([
+      apiGet({action:'getDatos'}),
+      apiGet({action:'getProveedores'})
+    ]);
+
+    if (!datosRes.ok) throw new Error(datosRes.error || 'Error al cargar datos');
+    const datos = datosRes.data || [];
+    const provs = provsRes.ok ? (provsRes.data || []) : [];
+
+    sub.textContent = 'Procesando ' + datos.length + ' registros...';
+    await new Promise(r => setTimeout(r, 50)); // let UI breathe
+
+    allData = datos.filter(r => { const p = getPeriodo(r); return p.startsWith("2025") || p.startsWith("2026"); });
+    proveedoresSheet = [...new Set(allData.filter(r => !esInterno(r)).map(r => r["Proveedor"]).filter(Boolean))].sort();
+    if (Array.isArray(provs)) {
+      provs.forEach(p => {
+        if (p.nombre && !proveedoresSheet.includes(p.nombre)) proveedoresSheet.push(p.nombre);
+        if (p.nombre && p.categoria) provCatMap[p.nombre] = p.categoria;
+      });
+    }
+    Object.entries(catFallback).forEach(([k,v]) => { if (!provCatMap[k]) provCatMap[k] = v; });
+    proveedoresSheet.sort();
+
+    initFilters();
+    document.getElementById("headerPeriodo").textContent = "Periodo actual: " + getPeriodoActual(allData);
+    const hoy = new Date(), pad = n => String(n).padStart(2,"0");
+    const hoyStr = hoy.getFullYear()+"-"+pad(hoy.getMonth()+1)+"-"+pad(hoy.getDate());
+    const gF = document.getElementById("gFecha"); if (gF) gF.value = hoyStr;
+
+    renderAnalisis();
+    updateTabBadge();
+
+    overlay.classList.add('hidden');
+
+  } catch(e) {
+    overlay.classList.add('hidden');
+    const errEl = document.getElementById('errMsg');
+    errEl.style.display = 'block';
+    errEl.textContent = 'Error cargando datos: ' + e.message + '. Verificá tu conexión o que el script de Google esté publicado.';
+    console.error(e);
+  }
+}
+
+async function recargar() {
+  document.getElementById("spinnerBtn").style.display = "inline-block";
+  // Reset charts so they get rebuilt
+  [chartCatA, chartCatAnt, chartVsProm, chartHist, chartProv2, chartProvEvol].forEach(c => { try { if(c) c.destroy(); } catch(_){} });
+  chartCatA = chartCatAnt = chartVsProm = chartHist = chartProv2 = chartProvEvol = null;
+  await init();
+  document.getElementById("spinnerBtn").style.display = "none";
+}
+
+function updateTabBadge() {
+  const n = allData.filter(r => !esInterno(r) && String(r["Revisar"]).toUpperCase() === "TRUE").length;
+  const b = document.getElementById("tabBadge");
+  b.textContent = n; b.style.display = n > 0 ? "inline-block" : "none";
+  const pc = document.getElementById("pendCount");
+  if (pc) pc.textContent = n > 0 ? n + " registro" + (n>1?"s":"") + " pendiente" + (n>1?"s":"") : "Sin pendientes";
+}
+
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  const id = "tab" + name.charAt(0).toUpperCase() + name.slice(1);
+  if (document.getElementById(id)) document.getElementById(id).classList.add("active");
+  if (name === "analisis") renderAnalisis();
+  if (name === "historico") renderHistorico();
+  if (name === "proveedor") renderProveedor();
+  if (name === "clasificar") renderClasificar();
+  if (name === "agregar") initFormAgregar();
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function initFilters() {
+  const hogares = [...new Set(allData.map(r => r["Hogar"]).filter(Boolean))].sort();
+  const cats = [...new Set(allData.filter(r => !esInterno(r)).map(r => r["Categoria"]).filter(Boolean))].sort();
+  ["filtroHogarA","filtroHogarH","filtroHogarP"].forEach(id => {
+    const sel = document.getElementById(id); if (!sel) return;
+    sel.innerHTML = "<option value='todos'>Todos</option>";
+    hogares.forEach(h => { const o = document.createElement("option"); o.value = h; o.textContent = h; sel.appendChild(o); });
+  });
+  const selC = document.getElementById("filtroCategH");
+  selC.innerHTML = "<option value='todas'>Todas</option>";
+  cats.forEach(c => { const o = document.createElement("option"); o.value = c; o.textContent = c; selC.appendChild(o); });
+  const selP = document.getElementById("filtroProvEvol");
+  selP.innerHTML = "<option value=''>Elegir...</option>";
+  proveedoresSheet.forEach(p => { const o = document.createElement("option"); o.value = p; o.textContent = p; selP.appendChild(o); });
+}
+
+// ── Agregar gasto ─────────────────────────────────────────────────────────────
+function initFormAgregar() {
+  const sel = document.getElementById("gProveedor");
+  if (sel && sel.tagName === "SELECT" && sel.options.length <= 1) {
+    sel.innerHTML = "<option value=''>Elegir...</option><option value='_nuevo'>+ Nuevo rubro...</option>";
+    proveedoresSheet.forEach(p => { const o = document.createElement("option"); o.value = p; o.textContent = p; sel.insertBefore(o, sel.lastChild); });
+  }
+}
+
+function onGProvChange() {
+  const sel = document.getElementById("gProveedor");
+  const cw = document.getElementById("gCatWrap");
+  const ce = document.getElementById("gCategoria");
+  if (!sel) return;
+  if (sel.value === "_nuevo") {
+    const inp = document.createElement("input"); inp.type = "text"; inp.id = "gProveedor";
+    inp.placeholder = "Escribi el rubro..."; inp.setAttribute("data-nuevo","true");
+    inp.style.cssText = "width:100%;font-size:13px;padding:6px 8px;border:1px solid #378ADD;border-radius:6px";
+    sel.replaceWith(inp); inp.focus(); if (cw) cw.style.display = "block";
+  } else {
+    const cat = provCatMap[sel.value] || "";
+    if (cat && ce) { ce.value = cat; if (cw) cw.style.display = "none"; }
+    else { if (cw) cw.style.display = "block"; }
+  }
+}
+
+function limpiarFormGasto() {
+  const okMsg = document.getElementById("agregarOkMsg"), errMsg = document.getElementById("agregarErrMsg");
+  if (okMsg) okMsg.style.display = "none"; if (errMsg) errMsg.style.display = "none";
+  const montoEl = document.getElementById("gMonto"); if (montoEl) montoEl.value = "";
+  const detEl = document.getElementById("gDetalle"); if (detEl) detEl.value = "";
+  const provEl = document.getElementById("gProveedor");
+  if (provEl && provEl.tagName === "INPUT") {
+    const sel = document.createElement("select"); sel.id = "gProveedor";
+    sel.setAttribute("onchange","onGProvChange()");
+    sel.innerHTML = "<option value=''>Elegir...</option><option value='_nuevo'>+ Nuevo rubro...</option>";
+    proveedoresSheet.forEach(p => { const o = document.createElement("option"); o.value = p; o.textContent = p; sel.insertBefore(o, sel.lastChild); });
+    provEl.replaceWith(sel);
+  }
+  const cw = document.getElementById("gCatWrap"); if (cw) cw.style.display = "block";
+}
+
+function guardarGastoManual() {
+  const provEl = document.getElementById("gProveedor");
+  const proveedor = provEl ? provEl.value.trim() : "";
+  const monto = document.getElementById("gMonto") ? document.getElementById("gMonto").value : "";
+  const fecha = document.getElementById("gFecha") ? document.getElementById("gFecha").value : "";
+  const cw = document.getElementById("gCatWrap");
+  const catEl = document.getElementById("gCategoria");
+  const catVisible = cw && cw.style.display !== "none";
+  const categoria = catVisible && catEl ? catEl.value : (provCatMap[proveedor] || "Variable");
+  const hogar = document.getElementById("gHogar") ? document.getElementById("gHogar").value : "";
+  const persona = document.getElementById("gPersona") ? document.getElementById("gPersona").value : "";
+  const detalle = document.getElementById("gDetalle") ? document.getElementById("gDetalle").value : "";
+  const esNuevo = provEl && provEl.getAttribute("data-nuevo") === "true";
+  const okMsg = document.getElementById("agregarOkMsg"), errMsg = document.getElementById("agregarErrMsg");
+  const btn = document.getElementById("btnAgregarGasto");
+  if (okMsg) okMsg.style.display = "none"; if (errMsg) errMsg.style.display = "none";
+  if (!proveedor || proveedor === "" || proveedor === "Elegir...") { if (errMsg) { errMsg.style.display="block"; errMsg.textContent="Elegi un proveedor/rubro."; } return; }
+  if (!monto || Number(monto) <= 0) { if (errMsg) { errMsg.style.display="block"; errMsg.textContent="Ingresa un monto valido."; } return; }
+  if (!fecha) { if (errMsg) { errMsg.style.display="block"; errMsg.textContent="Elegi una fecha."; } return; }
+  if (btn) { btn.disabled = true; btn.textContent = "Guardando..."; }
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (btn) { btn.disabled = false; btn.textContent = "Guardar gasto"; }
+      if (res && res.ok) {
+        if (okMsg) { okMsg.style.display="block"; okMsg.textContent="Gasto de "+fmt(Number(monto))+" guardado!"; }
+        if (esNuevo && !proveedoresSheet.includes(proveedor)) { proveedoresSheet.push(proveedor); proveedoresSheet.sort(); }
+        limpiarFormGasto();
+      } else {
+        if (errMsg) { errMsg.style.display="block"; errMsg.textContent="Error: "+(res?res.error:"desconocido"); }
+      }
+    })
+    .withFailureHandler(function(e) {
+      if (btn) { btn.disabled = false; btn.textContent = "Guardar gasto"; }
+      if (errMsg) { errMsg.style.display="block"; errMsg.textContent="Error: "+e.message; }
+    })
+    .agregarGastoManualFromDashboard({monto, fecha, proveedor, categoria, hogar, persona, detalle, esRubroNuevo:esNuevo});
+}
+
+// ── Análisis ──────────────────────────────────────────────────────────────────
+function renderAnalisis() {
+  if (!allData.length) return;
+  const hogar = document.getElementById("filtroHogarA").value;
+  const medio = document.getElementById("filtroMedioA").value;
+  let data = filterMedio(filterHogar(allData, hogar), medio).filter(r => !esInterno(r));
+  const actual = getPeriodoActual(data), anterior = getPeriodoAnterior(actual), u3 = getPeriodosUltimos3(actual);
+  const rA = data.filter(r => getPeriodo(r) === actual), rAnt = data.filter(r => getPeriodo(r) === anterior), rP = data.filter(r => u3.includes(getPeriodo(r)));
+  const tA = rA.reduce((s,r) => s+(parseMonto(r["Monto"])||0),0);
+  const tAnt = rAnt.reduce((s,r) => s+(parseMonto(r["Monto"])||0),0);
+  const tP = u3.length ? rP.reduce((s,r) => s+(parseMonto(r["Monto"])||0),0)/3 : 0;
+  const vsAnt = tAnt?((tA-tAnt)/tAnt*100):null, vsProm = tP?((tA-tP)/tP*100):null;
+  document.getElementById("titleActual").textContent = "Categorias - "+actual;
+  document.getElementById("titleAnterior").textContent = "Categorias - "+anterior;
+  function dp(pct){if(pct===null)return"";const cls=pct>5?"delta-up":pct<-5?"delta-down":"delta-neu";return"<div class='kpi-delta "+cls+"'>"+(pct>0?"↑":"↓")+" "+Math.abs(pct).toFixed(1)+"%</div>";}
+  document.getElementById("kpiRow").innerHTML =
+    "<div class='kpi'><div class='kpi-label'>Mes actual</div><div class='kpi-value'>"+fmtK(tA)+"</div><div class='kpi-sub'>"+actual+"</div></div>"+
+    "<div class='kpi'><div class='kpi-label'>Mes anterior</div><div class='kpi-value'>"+fmtK(tAnt)+"</div><div class='kpi-sub'>"+anterior+" "+dp(vsAnt)+"</div></div>"+
+    "<div class='kpi'><div class='kpi-label'>Prom. 3 meses</div><div class='kpi-value'>"+fmtK(tP)+"</div><div class='kpi-sub'>"+u3[2]+" - "+u3[0]+" "+dp(vsProm)+"</div></div>"+
+    "<div class='kpi'><div class='kpi-label'>Registros</div><div class='kpi-value'>"+rA.length+"</div><div class='kpi-sub'>transacciones</div></div>";
+  renderCatBar("chartCatActual", chartCatA, rA, c => { chartCatA = c; });
+  renderCatBar("chartCatAnterior", chartCatAnt, rAnt, c => { chartCatAnt = c; });
+  renderVarCat(rA, rAnt);
+  renderVsProm(rA, rP);
+}
+
+function renderCatBar(canvasId, existing, rows, setChart) {
+  const byCat = sumarPorCat(rows);
+  const cats = Object.keys(byCat).sort((a,b) => byCat[b]-byCat[a]);
+  const vals = cats.map(c => Math.round(byCat[c]));
+  const colors = cats.map(c => CAT_COLORS[c]||"#888780");
+  if (existing) existing.destroy();
+  const lp = {id:"lp"+canvasId,afterDatasetsDraw(ch){const ctx=ch.ctx;ch.data.datasets.forEach((_,i)=>{const meta=ch.getDatasetMeta(i);meta.data.forEach((bar,j)=>{const val=ch.data.datasets[i].data[j];if(!val||val<=0)return;ctx.save();ctx.fillStyle="#555";ctx.font="bold 9px sans-serif";ctx.textAlign="center";ctx.fillText(fmtK(val),bar.x,bar.y-4);ctx.restore();});});}};
+  const chart = new Chart(document.getElementById(canvasId), {type:"bar",plugins:[lp],data:{labels:cats,datasets:[{data:vals,backgroundColor:colors,borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},scales:{x:{ticks:{font:{size:10},maxRotation:35},grid:{display:false}},y:{ticks:{callback:v=>fmtK(v),font:{size:10}},grid:{color:"#f0f0f0"}}}}});
+  setChart(chart);
+}
+
+function renderVarCat(rA, rAnt) {
+  const cA = sumarPorCat(rA), cAnt = sumarPorCat(rAnt);
+  const all = [...new Set([...Object.keys(cA),...Object.keys(cAnt)])];
+  const rows = all.map(c => ({n:c,a:cA[c]||0,ant:cAnt[c]||0,d:cAnt[c]?((cA[c]||0)-cAnt[c])/cAnt[c]*100:null})).sort((a,b) => (b.a||0)-(a.a||0));
+  const mx = Math.max(...rows.map(r => Math.max(r.a, r.ant)), 1);
+  document.getElementById("varBody").innerHTML = rows.map(r => {
+    const p = r.d, cls = p===null?"pill-neu":p>5?"pill-up":p<-5?"pill-down":"pill-neu";
+    const txt = p===null?"nuevo":p>0?"↑"+Math.abs(p).toFixed(0)+"%":"↓"+Math.abs(p).toFixed(0)+"%";
+    const bw = Math.round(r.a/mx*100), bc = p===null?"#888":p>5?"#E24B4A":p<-5?"#1D9E75":"#378ADD";
+    const dot = "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:"+(CAT_COLORS[r.n]||"#888")+";margin-right:6px'></span>";
+    return "<tr><td style='font-weight:500'>"+dot+r.n+"</td><td style='text-align:right;color:#888'>"+(r.ant?fmt(r.ant):"—")+"</td><td style='text-align:right;font-weight:500'>"+(r.a?fmt(r.a):"—")+"</td><td style='text-align:right'><span class='pill "+cls+"'>"+txt+"</span></td><td><div class='bar-wrap'><div class='bar-fill' style='width:"+bw+"%;background:"+bc+"'></div></div></td></tr>";
+  }).join("");
+}
+
+function renderVsProm(rA, rP) {
+  const cA = sumarPorCat(rA), cP = sumarPorCat(rP);
+  Object.keys(cP).forEach(k => { cP[k] = cP[k]/3; });
+  const cats = [...new Set([...Object.keys(cA),...Object.keys(cP)])].sort();
+  if (chartVsProm) chartVsProm.destroy();
+  chartVsProm = new Chart(document.getElementById("chartVsProm"), {type:"bar",data:{labels:cats,datasets:[{label:"Mes actual",data:cats.map(c=>Math.round(cA[c]||0)),backgroundColor:"#378ADD",borderRadius:4,borderSkipped:false},{label:"Prom. 3 meses",data:cats.map(c=>Math.round(cP[c]||0)),backgroundColor:"#D3D1C7",borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"top",labels:{font:{size:12},boxWidth:12,padding:16}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+fmt(ctx.raw)}}},scales:{x:{ticks:{font:{size:11}},grid:{display:false}},y:{ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:"#f0f0f0"}}}}});
+}
+
+// ── Histórico ─────────────────────────────────────────────────────────────────
+function renderHistorico() {
+  if (!allData.length) return;
+  const anio = document.getElementById("filtroAnioH").value, hogar = document.getElementById("filtroHogarH").value, cat = document.getElementById("filtroCategH").value;
+  let data = allData.filter(r => !esInterno(r));
+  if (anio !== "todos") data = data.filter(r => getPeriodo(r).startsWith(anio));
+  if (hogar !== "todos") data = data.filter(r => r["Hogar"] === hogar);
+  if (cat !== "todas") data = data.filter(r => r["Categoria"] === cat);
+  const periodos = [...new Set(data.map(r => getPeriodo(r)).filter(Boolean))].sort();
+  const cats = [...new Set(data.map(r => r["Categoria"]).filter(Boolean))].sort();
+  const datasets = cats.map((c,i) => ({label:c,borderRadius:2,borderSkipped:false,backgroundColor:CAT_COLORS[c]||PALETTE[i%PALETTE.length],data:periodos.map(p=>Math.round(data.filter(r=>getPeriodo(r)===p&&r["Categoria"]===c).reduce((s,r)=>s+(parseMonto(r["Monto"])||0),0)))}));
+  if (chartHist) chartHist.destroy();
+  chartHist = new Chart(document.getElementById("chartHistorico"), {type:"bar",data:{labels:periodos,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"bottom",labels:{font:{size:11},boxWidth:10,padding:12}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+fmt(ctx.raw)}}},scales:{x:{stacked:true,ticks:{autoSkip:false,maxRotation:45,font:{size:10}},grid:{display:false}},y:{stacked:true,ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:"#f0f0f0"}}}}});
+  const byProv = sumarPorProv(data);
+  const sorted = Object.entries(byProv).sort((a,b) => b[1]-a[1]).slice(0,10);
+  const h = Math.max(280, sorted.length*38+60); document.getElementById("wrapProv").style.height = h+"px";
+  if (chartProv2) chartProv2.destroy();
+  chartProv2 = new Chart(document.getElementById("chartProv"), {type:"bar",data:{labels:sorted.map(e=>e[0]),datasets:[{data:sorted.map(e=>Math.round(e[1])),backgroundColor:"#378ADD",borderRadius:4,borderSkipped:false}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},scales:{x:{ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:"#f0f0f0"}},y:{ticks:{font:{size:12}},grid:{display:false}}}}});
+}
+
+// ── Por proveedor ─────────────────────────────────────────────────────────────
+function renderProveedor() {
+  const prov = document.getElementById("filtroProvEvol").value;
+  const hogar = document.getElementById("filtroHogarP").value;
+  if (!prov) { document.getElementById("provEvolBody").innerHTML = ""; return; }
+  document.getElementById("titleProvEvol").textContent = "Evolucion - "+prov;
+  let data = allData.filter(r => r["Proveedor"] === prov);
+  if (hogar !== "todos") data = data.filter(r => r["Hogar"] === hogar);
+  const byMes = {};
+  data.forEach(r => { const p = getPeriodo(r); if (!p) return; const m = parseMonto(r["Monto"])||0; byMes[p] = (byMes[p]||0)+m; });
+  const periodos = Object.keys(byMes).sort();
+  const vals = periodos.map(p => Math.round(byMes[p]));
+  const deltas = vals.map((v,i) => i===0?null:vals[i-1]?((v-vals[i-1])/vals[i-1]*100):null);
+  if (chartProvEvol) chartProvEvol.destroy();
+  const lp2 = {id:"lp2",afterDatasetsDraw(ch){const ctx=ch.ctx;ch.data.datasets.forEach((_,i)=>{const meta=ch.getDatasetMeta(i);meta.data.forEach((bar,j)=>{const val=ch.data.datasets[i].data[j];if(!val||val<=0)return;ctx.save();ctx.fillStyle="#555";ctx.font="bold 9px sans-serif";ctx.textAlign="center";ctx.fillText(fmtK(val),bar.x,bar.y-4);ctx.restore();});});}};
+  chartProvEvol = new Chart(document.getElementById("chartProvEvol"), {type:"bar",plugins:[lp2],data:{labels:periodos,datasets:[{data:vals,backgroundColor:"#378ADD",borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},scales:{x:{ticks:{autoSkip:false,maxRotation:45,font:{size:11}},grid:{display:false}},y:{ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:"#f0f0f0"}}}}});
+  document.getElementById("provEvolBody").innerHTML = periodos.map((p,i) => {
+    const d = deltas[i];
+    const dStr = d===null?"—":d>0?"<span class='pill pill-up'>↑"+Math.abs(d).toFixed(0)+"%</span>":"<span class='pill pill-down'>↓"+Math.abs(d).toFixed(0)+"%</span>";
+    return "<tr><td>"+p+"</td><td style='text-align:right;font-weight:500'>"+fmt(vals[i])+"</td><td style='text-align:right'>"+dStr+"</td></tr>";
+  }).reverse().join("");
+}
+
+// ── Clasificar — with improved tap buttons ────────────────────────────────────
+function buildProvSelect(id, val) {
+  const ops = [...proveedoresSheet];
+  if (val && !ops.includes(val) && val !== "Transferencia MP") ops.unshift(val);
+  const opts = ops.map(p => "<option value='"+p+"' "+(p===val?"selected":"")+">"+p+"</option>").join("");
+  return "<select id='"+id+"' onchange='onProvChange(this,\""+id+"\")'>" + opts + "<option value='_nuevo'>+ Agregar nuevo...</option></select>";
+}
+
+function buildCatPicker(idx, selectedCat) {
+  const btns = CATEGORIAS.map(c => {
+    const color = CAT_COLORS[c];
+    const sel = c === selectedCat;
+    return "<button class='cat-pick-btn"+(sel?" selected":"")+"' data-cat='"+c+"' style='"+(sel?"background:"+color+";border-color:"+color:"")+"' onclick='selectCat("+idx+",\""+c+"\",\""+color+"\")'>"+c+"</button>";
+  }).join("");
+  return "<div class='cat-pick-grid' id='catgrid-"+idx+"'>"+btns+"</div><input type='hidden' id='cat-"+idx+"' value='"+selectedCat+"'>";
+}
+
+function buildHogarPicker(idx, selectedHogar) {
+  const btns = HOGARES.map(h => {
+    const sel = h === selectedHogar;
+    return "<button class='hogar-pick-btn"+(sel?" selected":"")+"' onclick='selectHogar("+idx+",\""+h+"\")'>"+h+"</button>";
+  }).join("");
+  return "<div class='hogar-pick-row' id='hogarrow-"+idx+"'>"+btns+"</div><input type='hidden' id='hogar-"+idx+"' value='"+selectedHogar+"'>";
+}
+
+function selectCat(idx, cat, color) {
+  document.getElementById("cat-"+idx).value = cat;
+  const grid = document.getElementById("catgrid-"+idx);
+  if (!grid) return;
+  grid.querySelectorAll(".cat-pick-btn").forEach(btn => {
+    btn.classList.remove("selected");
+    btn.style.background = ""; btn.style.borderColor = ""; btn.style.color = "";
+  });
+  const sel = grid.querySelector("[data-cat='"+cat+"']");
+  if (sel) { sel.classList.add("selected"); sel.style.background = color; sel.style.borderColor = color; sel.style.color = "#fff"; }
+}
+
+function selectHogar(idx, hogar) {
+  document.getElementById("hogar-"+idx).value = hogar;
+  const row = document.getElementById("hogarrow-"+idx);
+  if (!row) return;
+  row.querySelectorAll(".hogar-pick-btn").forEach(btn => btn.classList.remove("selected"));
+  const btns = row.querySelectorAll(".hogar-pick-btn");
+  HOGARES.forEach((h,i) => { if (h === hogar && btns[i]) btns[i].classList.add("selected"); });
+}
+
+function onProvChange(sel, id) {
+  const idx = id.split("-")[1];
+  if (sel.value === "_nuevo") {
+    const inp = document.createElement("input"); inp.type = "text"; inp.id = id;
+    inp.placeholder = "Escribi el rubro..."; inp.setAttribute("data-nuevo","true");
+    inp.style.cssText = "width:100%;font-size:13px;padding:6px 8px;border:1px solid #378ADD;border-radius:6px";
+    sel.replaceWith(inp); inp.focus();
+  } else {
+    const cat = provCatMap[sel.value] || "";
+    if (cat) selectCat(idx, cat, CAT_COLORS[cat] || "#888");
+  }
+}
+
+function renderClasificar() {
+  const filtro = document.getElementById("filtroClasif").value;
+  let rows = allData.filter(r => String(r["Revisar"]).toUpperCase() === "TRUE" && !esInterno(r));
+  if (filtro === "sinmonto") rows = rows.filter(r => !parseMonto(r["Monto"]));
+  if (filtro === "transferencia") rows = rows.filter(r => r["Tipo_MP"]==="Transferencia"||(r["Proveedor"]||"").includes("Transferencia"));
+  if (filtro === "santander") rows = rows.filter(r => r["Origen"]==="Santander");
+  const container = document.getElementById("pendList");
+  if (!rows.length) { container.innerHTML = "<div class='empty'>✅ Sin pendientes para este filtro</div>"; return; }
+  container.innerHTML = rows.slice(0, 60).map((r, idx) => {
+    const gmailId = String(r["Gmail_ID"]||""), dest = String(r["Destinatario"]||"");
+    const monto = parseMonto(r["Monto"]), periodo = getPeriodo(r), detalle = String(r["Detalle"]||"").slice(0,80);
+    const provActual = String(r["Proveedor"]||""), catActual = String(r["Categoria"]||"Variable"), hogarActual = String(r["Hogar"]||"SMDT");
+    const esTransf = r["Tipo_MP"]==="Transferencia"||provActual.includes("Transferencia");
+    const esSant = r["Origen"]==="Santander";
+    const catAuto = provCatMap[provActual] || "";
+    const catInit = catAuto || catActual;
+    const medioBadge = esSant?"<span class='medio-badge medio-visa'>Visa</span>":esTransf?"<span class='medio-badge medio-mp'>MP</span>":"";
+    const gIdSafe = gmailId.replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+    const destSafe = dest.replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+
+    return `<div class='pend-item' id='item-${idx}'>
+      <div class='pend-header'>
+        <span class='pend-periodo'>${periodo}</span>
+        <span class='pend-dest' title='${dest||provActual}'>${dest||provActual||"Sin dest."}</span>
+        ${medioBadge}
+        <span class='pend-monto'>${monto?fmt(monto):"<span class='badge-danger'>sin monto</span>"}</span>
+      </div>
+      ${detalle?"<div class='pend-detalle' title='"+detalle+"'>"+detalle+"</div>":""}
+      <div class='pend-form-new'>
+        <div class='form-group full-col'>
+          <label>Proveedor / Rubro</label>
+          ${buildProvSelect("prov-"+idx, provActual)}
+          ${catAuto?"<div style='font-size:11px;color:#1D9E75;margin-top:3px'>Auto: "+catAuto+"</div>":""}
+        </div>
+        <div class='form-group full-col'>
+          <label>Categoría</label>
+          ${buildCatPicker(idx, catInit)}
+        </div>
+        <div class='form-group full-col'>
+          <label>Hogar</label>
+          ${buildHogarPicker(idx, hogarActual)}
+        </div>
+        <div class='form-group full-col' style='display:flex;align-items:center;gap:10px;flex-wrap:wrap'>
+          <button class='btn-guardar' onclick='guardarClasif(${idx},"${gIdSafe}","${destSafe}")'>Guardar</button>
+          <div id='msg-${idx}' style='font-size:12px;min-height:16px'></div>
+        </div>
+      </div>
+      ${esTransf&&dest?"<div class='mapeo-check'><input type='checkbox' id='mapeo-"+idx+"' checked><label for='mapeo-"+idx+"'>Recordar a \""+dest+"\" para proximas transferencias</label></div>":""}
+    </div>`;
+  }).join("");
+}
+
+function guardarClasif(idx, gmailId, dest) {
+  const provEl = document.getElementById("prov-"+idx);
+  const catEl = document.getElementById("cat-"+idx);
+  const hogarEl = document.getElementById("hogar-"+idx);
+  const mapeoEl = document.getElementById("mapeo-"+idx);
+  const msgEl = document.getElementById("msg-"+idx);
+  const btn = document.querySelector("#item-"+idx+" .btn-guardar");
+  const proveedor = provEl ? provEl.value.trim() : "";
+  const categoria = catEl ? catEl.value : "Variable";
+  const hogar = hogarEl ? hogarEl.value : "";
+  const guardarMapeo = mapeoEl ? mapeoEl.checked : false;
+  const esNuevo = provEl && provEl.getAttribute("data-nuevo") === "true";
+  if (!proveedor || proveedor === "_nuevo") { if (msgEl) { msgEl.style.color="#c0392b"; msgEl.textContent="Completa el proveedor."; } return; }
+  if (!gmailId) { if (msgEl) { msgEl.style.color="#c0392b"; msgEl.textContent="Sin Gmail_ID."; } return; }
+  if (!hogar) { if (msgEl) { msgEl.style.color="#c0392b"; msgEl.textContent="Seleccioná un hogar."; } return; }
+  if (btn) { btn.disabled = true; btn.textContent = "Guardando..."; }
+  if (msgEl) msgEl.textContent = "";
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (btn) btn.disabled = false;
+      if (res && res.ok) {
+        const r = allData.find(x => String(x["Gmail_ID"]).trim() === gmailId.trim());
+        if (r) { r["Proveedor"] = proveedor; r["Categoria"] = categoria; r["Hogar"] = hogar; r["Revisar"] = false; }
+        if (esNuevo && !proveedoresSheet.includes(proveedor)) { proveedoresSheet.push(proveedor); proveedoresSheet.sort(); }
+        document.getElementById("item-"+idx).classList.add("guardado");
+        if (msgEl) { msgEl.style.color="#1D9E75"; msgEl.innerHTML = "✓ Guardado"+(esNuevo?" <span class='nuevo-tag'>nuevo rubro</span>":""); }
+        if (btn) btn.textContent = "Listo ✓";
+        updateTabBadge();
+      } else {
+        if (btn) btn.textContent = "Guardar";
+        if (msgEl) { msgEl.style.color="#c0392b"; msgEl.textContent = "Error: "+(res?res.error:"desconocido"); }
+      }
+    })
+    .withFailureHandler(function(e) {
+      if (btn) { btn.disabled = false; btn.textContent = "Guardar"; }
+      if (msgEl) { msgEl.style.color="#c0392b"; msgEl.textContent = "Error: "+e.message; }
+    })
+    .clasificarFilaFromDashboard({gmailId, proveedor, categoria, hogar, destinatario:dest, guardarEnMapeo:guardarMapeo, esRubroNuevo:esNuevo});
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+init();
+</script>
 </body>
 </html>

@@ -79,6 +79,24 @@ button.refresh{padding:6px 14px;border:1px solid #ddd;border-radius:6px;backgrou
 .medio-visa{background:#e8f0fe;color:#3c4aad;}
 .medio-mp{background:#fff3e0;color:#e67e22;}
 
+/* ── Password screen ── */
+#auth-screen{position:fixed;inset:0;background:#f0f2f5;display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;}
+#auth-screen.hidden{display:none;}
+.auth-card{background:#fff;border-radius:16px;border:1px solid #e5e5e5;padding:2.5rem 2rem;width:100%;max-width:360px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.08);}
+.auth-card .auth-icon{font-size:48px;margin-bottom:1rem;}
+.auth-card h2{font-size:20px;font-weight:600;margin-bottom:.4rem;}
+.auth-card p{font-size:13px;color:#888;margin-bottom:1.5rem;}
+.auth-input-wrap{position:relative;margin-bottom:1rem;}
+#authInput{width:100%;font-size:18px;font-weight:600;letter-spacing:.15em;padding:14px 44px 14px 16px;border:2px solid #e5e5e5;border-radius:10px;text-align:center;outline:none;transition:border-color .2s;background:#fafafa;}
+#authInput:focus{border-color:#378ADD;background:#fff;}
+#authInput.error{border-color:#ef4444;animation:shake .3s ease;}
+.auth-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#aaa;padding:4px;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.auth-err{font-size:12px;color:#ef4444;margin-bottom:.75rem;min-height:16px;}
+#btnAuth{width:100%;padding:13px;background:#378ADD;border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s;}
+#btnAuth:hover{background:#2970c0;}
+#btnAuth:active{transform:scale(0.98);}
+
 /* ── Loading overlay ── */
 #loading-overlay{position:fixed;inset:0;background:#f0f2f5;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;}
 #loading-overlay.hidden{display:none;}
@@ -105,6 +123,22 @@ button.refresh{padding:6px 14px;border:1px solid #ddd;border-radius:6px;backgrou
 </style>
 </head>
 <body>
+
+<!-- Password screen -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-icon">💸</div>
+    <h2>Gastos del Hogar</h2>
+    <p>Ingresá la clave para continuar</p>
+    <div class="auth-input-wrap">
+      <input id="authInput" type="password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')submitAuth()">
+      <button class="auth-toggle" onclick="toggleAuthVis()" title="Mostrar/ocultar">👁</button>
+    </div>
+    <div class="auth-err" id="authErr"></div>
+    <button id="btnAuth" onclick="submitAuth()">Entrar</button>
+  </div>
+</div>
 
 <!-- Loading overlay -->
 <div id="loading-overlay">
@@ -755,8 +789,42 @@ function guardarClasif(idx, gmailId, dest) {
     .clasificarFilaFromDashboard({gmailId, proveedor, categoria, hogar, destinatario:dest, guardarEnMapeo:guardarMapeo, esRubroNuevo:esNuevo});
 }
 
+// ── Auth ─────────────────────────────────────────────────────────────────────
+const AUTH_KEY = 'gastos_auth_v1';
+
+function checkAuth() {
+  if (localStorage.getItem(AUTH_KEY) === 'ok') {
+    document.getElementById('auth-screen').classList.add('hidden');
+    init();
+  }
+  // else: password screen stays visible
+}
+
+function submitAuth() {
+  const val = document.getElementById('authInput').value;
+  const errEl = document.getElementById('authErr');
+  const inp = document.getElementById('authInput');
+  if (val === 'UKE2026') {
+    localStorage.setItem(AUTH_KEY, 'ok');
+    document.getElementById('auth-screen').classList.add('hidden');
+    errEl.textContent = '';
+    init();
+  } else {
+    inp.classList.add('error');
+    errEl.textContent = 'Clave incorrecta, intentá de nuevo.';
+    inp.value = '';
+    setTimeout(() => inp.classList.remove('error'), 400);
+    inp.focus();
+  }
+}
+
+function toggleAuthVis() {
+  const inp = document.getElementById('authInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
 // ── Start ─────────────────────────────────────────────────────────────────────
-init();
+checkAuth();
 </script>
 </body>
 </html>

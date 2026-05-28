@@ -679,31 +679,24 @@ function renderHistorico(){
     tension:0.3,
     spanGaps:true
   });
-  // Línea año anterior (solo cuando se filtra por año específico)
-  if(anio!=="todos"){
-    const prev=String(Number(anio)-1);
-    const prevVals=periodos.map(p=>{
-      const pp=prev+p.slice(4);
-      const v=Math.round(base.filter(r=>getPeriodo(r)===pp).reduce((s,r)=>s+(parseMonto(r["Monto"])||0),0));
-      return v>0?v:null;
+  // Línea mes anterior (desplazada 1 posición: el punto en mes X muestra el total del mes X-1)
+  if(totales.length>1){
+    const prevMesVals=[null,...totales.slice(0,-1)];
+    allDs.push({
+      label:'Mes anterior',
+      type:'line',
+      data:prevMesVals,
+      borderColor:'#94a3b8',
+      backgroundColor:'rgba(148,163,184,0.08)',
+      borderWidth:2,
+      borderDash:[6,4],
+      pointRadius:4,
+      pointBackgroundColor:'#fff',
+      pointBorderColor:'#94a3b8',
+      pointBorderWidth:2,
+      tension:0.3,
+      spanGaps:false
     });
-    if(prevVals.some(v=>v!=null)){
-      allDs.push({
-        label:prev+' (ref)',
-        type:'line',
-        data:prevVals,
-        borderColor:'#94a3b8',
-        backgroundColor:'rgba(148,163,184,0.08)',
-        borderWidth:2.5,
-        borderDash:[6,4],
-        pointRadius:4,
-        pointBackgroundColor:'#fff',
-        pointBorderColor:'#94a3b8',
-        pointBorderWidth:2,
-        tension:0.35,
-        spanGaps:false
-      });
-    }
   }
   // Plugin: etiqueta de total encima de cada barra apilada
   const stackLabel={

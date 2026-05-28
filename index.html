@@ -716,7 +716,7 @@ function guardarGastoManual(){
   const esNuevo=provEl&&provEl.getAttribute("data-nuevo")==="true";
   const okMsg=document.getElementById("agregarOkMsg"),errMsg=document.getElementById("agregarErrMsg"),btn=document.getElementById("btnAgregarGasto");
   if(okMsg)okMsg.style.display="none";if(errMsg)errMsg.style.display="none";
-  if(!proveedor||proveedor====""||proveedor==="Elegir..."){if(errMsg){errMsg.style.display="block";errMsg.textContent="Elegí un proveedor/rubro.";}return;}
+  if(!proveedor||proveedor===""||proveedor==="Elegir..."){if(errMsg){errMsg.style.display="block";errMsg.textContent="Elegí un proveedor/rubro.";}return;}
   if(!monto||Number(monto)<=0){if(errMsg){errMsg.style.display="block";errMsg.textContent="Ingresá un monto válido.";}return;}
   if(!fecha){if(errMsg){errMsg.style.display="block";errMsg.textContent="Elegí una fecha.";}return;}
   if(btn){btn.disabled=true;btn.textContent="Guardando...";}

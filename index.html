@@ -784,6 +784,11 @@ function renderClasificar(){
   if(filtro==="sinmonto")rows=rows.filter(r=>!parseMonto(r["Monto"]));
   if(filtro==="transferencia")rows=rows.filter(r=>r["Tipo_MP"]==="Transferencia"||(r["Proveedor"]||"").includes("Transferencia"));
   if(filtro==="santander")rows=rows.filter(r=>r["Origen"]==="Santander");
+  // Ordenar de más reciente a más antiguo
+  rows.sort((a,b)=>{
+    const fa=new Date(a["Fecha"]||a["Periodo"]||0), fb=new Date(b["Fecha"]||b["Periodo"]||0);
+    return fb-fa;
+  });
   const container=document.getElementById("pendList");
   if(!rows.length){container.innerHTML="<div class='empty'><div class='empty-icon'>✅</div><div>Sin pendientes para este filtro</div></div>";return;}
   container.innerHTML=rows.slice(0,60).map((r,idx)=>{

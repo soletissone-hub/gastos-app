@@ -1116,10 +1116,22 @@ Respondé SOLO con JSON válido, sin texto extra:
     if (msgEl) { msgEl.style.color = '#7c3aed'; msgEl.textContent = '✨ IA: ' + (sug.proveedor || sug.categoria) + ' · confianza ' + sug.confianza; }
 
   } catch(e) {
-    if (btn) { btn.disabled = false; btn.textContent = '✨ Sugerir con IA'; }
-    const msgEl = document.getElementById('msg-' + idx);
-    if (msgEl) { msgEl.style.color = '#dc2626'; msgEl.textContent = 'Error IA: ' + e.message; }
     console.error('Gemini error:', e);
+    // Fallback: clasificador local por palabras clave
+    const texto = (dest + ' ' + detalle).toLowerCase();
+    const catKey = classify(texto);
+    const catLabel = getCategoryInfo(catKey).label;
+    const color = CAT_COLORS[catLabel] || '#888';
+    selectCat(idx, catLabel, color);
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 ' + catLabel; }
+    const msgEl = document.getElementById('msg-' + idx);
+    if (msgEl) {
+      const es429 = e.message.includes('429') || e.message.includes('Límite');
+      msgEl.style.color = '#92400e';
+      msgEl.textContent = es429
+        ? '⚠ Gemini en pausa (cuota). Sugerencia local: ' + catLabel
+        : '⚠ Sin IA: ' + e.message + ' — sugerencia local: ' + catLabel;
+    }
   }
 }
 

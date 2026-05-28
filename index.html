@@ -663,8 +663,23 @@ function renderHistorico(){
   }));
   // Totales por período (para etiquetas y tabla)
   const totales=periodos.map(p=>Math.round(data.filter(r=>getPeriodo(r)===p).reduce((s,r)=>s+(parseMonto(r["Monto"])||0),0)));
-  // Línea año anterior (solo cuando se filtra por año específico)
+  // Línea de total mensual (siempre visible)
   const allDs=[...barDs];
+  allDs.push({
+    label:'Total',
+    type:'line',
+    data:totales,
+    borderColor:'#1d4ed8',
+    backgroundColor:'rgba(29,78,216,0.05)',
+    borderWidth:2.5,
+    pointRadius:4,
+    pointBackgroundColor:'#fff',
+    pointBorderColor:'#1d4ed8',
+    pointBorderWidth:2,
+    tension:0.3,
+    spanGaps:true
+  });
+  // Línea año anterior (solo cuando se filtra por año específico)
   if(anio!=="todos"){
     const prev=String(Number(anio)-1);
     const prevVals=periodos.map(p=>{

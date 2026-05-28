@@ -156,6 +156,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .medio-mp{background:#fff7ed;color:#c2410c;}
 .nuevo-tag{font-size:10px;background:#eff6ff;color:#1d4ed8;padding:1px 6px;border-radius:3px;font-weight:700;}
 
+/* ── Movimientos ── */
+.mov-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f1f5f9;transition:background .15s;}
+.mov-row:last-child{border-bottom:none;}
+.mov-row:hover{background:#fafafa;}
+.mov-fecha{font-size:12px;color:#94a3b8;white-space:nowrap;width:42px;flex-shrink:0;}
+.mov-desc{flex:1;min-width:0;}
+.mov-prov{font-size:13px;font-weight:700;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mov-det{font-size:11px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mov-right{text-align:right;flex-shrink:0;}
+.mov-monto{font-size:14px;font-weight:800;color:#1d4ed8;white-space:nowrap;}
+.mov-tag{font-size:10px;color:#64748b;margin-top:2px;}
+.mov-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.mov-dot.ok{background:#22c55e;}
+.mov-dot.pend{background:#f59e0b;}
+.mov-count{padding:10px 14px;font-size:12px;color:#64748b;border-bottom:1px solid #f1f5f9;}
+
 /* ── Spinner ── */
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -249,6 +265,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
   <div class="tab active" id="tabAnalisis"    onclick="switchTab('analisis')">Análisis</div>
   <div class="tab"        id="tabHistorico"   onclick="switchTab('historico')">Histórico</div>
   <div class="tab"        id="tabProveedor"   onclick="switchTab('proveedor')">Por proveedor</div>
+  <div class="tab"        id="tabMovimientos" onclick="switchTab('movimientos')">📋 Movimientos</div>
   <div class="tab"        id="tabAgregar"     onclick="switchTab('agregar')">＋ Agregar</div>
   <div class="tab"        id="tabClasificar"  onclick="switchTab('clasificar')">Clasificar <span class="tab-badge" id="tabBadge" style="display:none"></span></div>
   <div class="tab"        id="tabConfig"      onclick="switchTab('config')">⚙ Ajustes</div>
@@ -320,6 +337,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
       <div style="overflow-x:auto"><table class="var-table"><thead><tr>
         <th>Período</th><th style="text-align:right">Monto</th><th style="text-align:right">vs mes anterior</th>
       </tr></thead><tbody id="provEvolBody"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ─── MOVIMIENTOS ─────────────────────────────── -->
+  <div id="tab-movimientos" class="tab-content">
+    <div class="filters">
+      <label>Medio de pago</label>
+      <select id="filtroMedioMov" onchange="renderMovimientos()"><option value="todos">Todos</option></select>
+      <label style="margin-left:8px">Persona</label>
+      <select id="filtroPersonaMov" onchange="renderMovimientos()">
+        <option value="todos">Todos</option>
+        <option value="Sole">Sole</option>
+        <option value="Tomi">Tomi</option>
+      </select>
+      <label style="margin-left:8px">Período</label>
+      <select id="filtroPeriodoMov" onchange="renderMovimientos()"><option value="todos">Todos</option></select>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="mov-count" id="movCount"></div>
+      <div id="movBody"></div>
     </div>
   </div>
 
@@ -564,6 +601,7 @@ function switchTab(name) {
   if (name==="analisis") renderAnalisis();
   if (name==="historico") renderHistorico();
   if (name==="proveedor") renderProveedor();
+  if (name==="movimientos") renderMovimientos();
   if (name==="clasificar") renderClasificar();
   if (name==="agregar") initFormAgregar();
 }
@@ -582,8 +620,14 @@ function initFilters() {
   cats.forEach(c => { const o = document.createElement("option"); o.value=c; o.textContent=c; selC.appendChild(o); });
   const selP = document.getElementById("filtroProvEvol");
   selP.innerHTML = "<option value=''>Elegir proveedor...</option>";
-  // Usar allProveedores: lista oficial + los que aparecen 2+ veces (excluye merchants de una sola vez)
   allProveedores.forEach(p => { const o = document.createElement("option"); o.value=p; o.textContent=p; selP.appendChild(o); });
+  // Filtros Movimientos
+  const medios = [...new Set(allData.map(r=>r["Medio_Pago"]).filter(Boolean))].sort();
+  const selMed = document.getElementById("filtroMedioMov");
+  if(selMed){ selMed.innerHTML="<option value='todos'>Todos</option>"; medios.forEach(m=>{const o=document.createElement("option");o.value=m;o.textContent=m;selMed.appendChild(o);}); }
+  const periodosMov = [...new Set(allData.map(r=>getPeriodo(r)).filter(Boolean))].sort().reverse();
+  const selPer = document.getElementById("filtroPeriodoMov");
+  if(selPer){ selPer.innerHTML="<option value='todos'>Todos</option>"; periodosMov.forEach(p=>{const o=document.createElement("option");o.value=p;o.textContent=p;selPer.appendChild(o);}); }
 }
 
 // ── Análisis ──────────────────────────────────────────────────────────────────
@@ -753,6 +797,50 @@ function renderHistorico(){
   document.getElementById("wrapProv").style.height=h+"px";
   if(chartProv2)chartProv2.destroy();
   chartProv2=new Chart(document.getElementById("chartProv"),{type:"bar",data:{labels:sorted.map(e=>e[0]),datasets:[{data:sorted.map(e=>Math.round(e[1])),backgroundColor:"#378ADD",borderRadius:5,borderSkipped:false}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},scales:{x:{ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:"#f1f5f9"}},y:{ticks:{font:{size:12}},grid:{display:false}}}}});
+}
+
+// ── Movimientos ───────────────────────────────────────────────────────────────
+function renderMovimientos(){
+  if(!allData.length) return;
+  const medioFil=document.getElementById("filtroMedioMov").value;
+  const personaFil=document.getElementById("filtroPersonaMov").value;
+  const periodoFil=document.getElementById("filtroPeriodoMov").value;
+  let data=[...allData];
+  if(medioFil!=="todos") data=data.filter(r=>(r["Medio_Pago"]||"")===medioFil);
+  if(personaFil!=="todos") data=data.filter(r=>(r["Persona"]||"")===personaFil);
+  if(periodoFil!=="todos") data=data.filter(r=>getPeriodo(r)===periodoFil);
+  // Ordenar más reciente primero
+  data.sort((a,b)=>{
+    const fa=new Date(a["Fecha_Pago"]||a["Fecha_Registro"]||0);
+    const fb=new Date(b["Fecha_Pago"]||b["Fecha_Registro"]||0);
+    return fb-fa;
+  });
+  const MAX=300, shown=data.slice(0,MAX);
+  const cnt=document.getElementById("movCount");
+  if(cnt) cnt.textContent=data.length+" movimientos"+(data.length>MAX?" · mostrando últimos "+MAX:"");
+  document.getElementById("movBody").innerHTML=shown.map(r=>{
+    const fecha=r["Fecha_Pago"]||r["Fecha_Registro"]||"";
+    const dd=fecha?fecha.slice(8,10)+"/"+fecha.slice(5,7):"—";
+    const prov=r["Proveedor"]||"";
+    const det=(r["Detalle"]||r["Destinatario"]||"").slice(0,50);
+    const monto=parseMonto(r["Monto"]);
+    const medio=(r["Medio_Pago"]||"").replace("Visa Santander","Visa").replace("Mercado Pago","MP").replace("Transferencia Banco","Transf").replace("Transferencia MP","MP");
+    const persona=r["Persona"]||"";
+    const cat=r["Categoria"]||"";
+    const esRev=r["Revisar"]===true||String(r["Revisar"]).toUpperCase()==="TRUE";
+    const dotCls=esRev?"pend":"ok";
+    const tag=[medio,persona].filter(Boolean).join(" · ");
+    return"<div class='mov-row'>"+
+      "<div class='mov-fecha'>"+dd+"</div>"+
+      "<div class='mov-desc'>"+
+        "<div class='mov-prov'>"+(prov||det||"Sin detalle")+"</div>"+
+        (prov&&det?"<div class='mov-det'>"+det+"</div>":"")+"</div>"+
+      "<div class='mov-right'>"+
+        "<div class='mov-monto'>"+fmt(monto)+"</div>"+
+        "<div class='mov-tag'>"+tag+(cat?" · "+cat:"")+"</div></div>"+
+      "<div class='mov-dot "+dotCls+"' title='"+(esRev?"Pendiente clasificar":"Clasificado")+"'></div>"+
+    "</div>";
+  }).join("");
 }
 
 // ── Por proveedor ─────────────────────────────────────────────────────────────

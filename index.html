@@ -296,6 +296,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
       <select id="filtroCategH" onchange="renderHistorico()"><option value="todas">Todas</option></select>
     </div>
     <div class="card"><div class="card-title">Evolución mensual por categoría</div><div class="chart-wrap tall"><canvas id="chartHistorico"></canvas></div></div>
+    <div class="card">
+      <div class="card-title">Total mensual</div>
+      <table class="var-table">
+        <thead><tr><th>Período</th><th style="text-align:right">Total</th><th style="text-align:right">vs mes anterior</th></tr></thead>
+        <tbody id="histTotalesBody"></tbody>
+      </table>
+    </div>
     <div class="card"><div class="card-title">Top 10 proveedores</div><div id="wrapProv" style="position:relative;height:320px"><canvas id="chartProv"></canvas></div></div>
   </div>
 
@@ -636,20 +643,106 @@ function renderVsProm(rA,rP){
 
 // ── Histórico ─────────────────────────────────────────────────────────────────
 function renderHistorico(){
-  if(!allData.length)return;
-  const anio=document.getElementById("filtroAnioH").value,hogar=document.getElementById("filtroHogarH").value,cat=document.getElementById("filtroCategH").value;
-  let data=allData.filter(r=>!esInterno(r));
-  if(anio!=="todos")data=data.filter(r=>getPeriodo(r).startsWith(anio));
-  if(hogar!=="todos")data=data.filter(r=>r["Hogar"]===hogar);
-  if(cat!=="todas")data=data.filter(r=>r["Categoria"]===cat);
+  if(!allData.length) return;
+  const anio=document.getElementById("filtroAnioH").value;
+  const hogar=document.getElementById("filtroHogarH").value;
+  const cat=document.getElementById("filtroCategH").value;
+  // base = todos los datos sin filtro de año (para línea año anterior)
+  let base=allData.filter(r=>!esInterno(r));
+  if(hogar!=="todos") base=base.filter(r=>r["Hogar"]===hogar);
+  if(cat!=="todas") base=base.filter(r=>r["Categoria"]===cat);
+  let data=anio!=="todos"?base.filter(r=>getPeriodo(r).startsWith(anio)):base;
   const periodos=[...new Set(data.map(r=>getPeriodo(r)).filter(Boolean))].sort();
   const cats=[...new Set(data.map(r=>r["Categoria"]).filter(Boolean))].sort();
-  const datasets=cats.map((c,i)=>({label:c,borderRadius:2,borderSkipped:false,backgroundColor:CAT_COLORS[c]||PALETTE[i%PALETTE.length],data:periodos.map(p=>Math.round(data.filter(r=>getPeriodo(r)===p&&r["Categoria"]===c).reduce((s,r)=>s+(parseMonto(r["Monto"])||0),0)))}));
+  // Barras apiladas por categoría
+  const barDs=cats.map((c,i)=>({
+    label:c, type:'bar', stack:'cur',
+    borderRadius:2, borderSkipped:false,
+    backgroundColor:CAT_COLORS[c]||PALETTE[i%PALETTE.length],
+    data:periodos.map(p=>Math.round(data.filter(r=>getPeriodo(r)===p&&r["Categoria"]===c).reduce((s,r)=>s+(parseMonto(r["Monto"])||0),0)))
+  }));
+  // Totales por período (para etiquetas y tabla)
+  const totales=periodos.map(p=>Math.round(data.filter(r=>getPeriodo(r)===p).reduce((s,r)=>s+(parseMonto(r["Monto"])||0),0)));
+  // Línea año anterior (solo cuando se filtra por año específico)
+  const allDs=[...barDs];
+  if(anio!=="todos"){
+    const prev=String(Number(anio)-1);
+    const prevVals=periodos.map(p=>{
+      const pp=prev+p.slice(4);
+      const v=Math.round(base.filter(r=>getPeriodo(r)===pp).reduce((s,r)=>s+(parseMonto(r["Monto"])||0),0));
+      return v>0?v:null;
+    });
+    if(prevVals.some(v=>v!=null)){
+      allDs.push({
+        label:prev+' (ref)',
+        type:'line',
+        data:prevVals,
+        borderColor:'#94a3b8',
+        backgroundColor:'rgba(148,163,184,0.08)',
+        borderWidth:2.5,
+        borderDash:[6,4],
+        pointRadius:4,
+        pointBackgroundColor:'#fff',
+        pointBorderColor:'#94a3b8',
+        pointBorderWidth:2,
+        tension:0.35,
+        spanGaps:false
+      });
+    }
+  }
+  // Plugin: etiqueta de total encima de cada barra apilada
+  const stackLabel={
+    id:'stackLabel',
+    afterDatasetsDraw(ch){
+      const ctx=ch.ctx;
+      periodos.forEach((_,i)=>{
+        const tot=totales[i]; if(!tot) return;
+        let minY=null;
+        barDs.forEach((_,di)=>{
+          const m=ch.getDatasetMeta(di);
+          if(m.data[i]&&m.data[i].y!==undefined&&(minY===null||m.data[i].y<minY)) minY=m.data[i].y;
+        });
+        if(minY===null) return;
+        const x=ch.getDatasetMeta(0).data[i].x;
+        ctx.save();
+        ctx.fillStyle='#1e40af';
+        ctx.font='bold 10px sans-serif';
+        ctx.textAlign='center';
+        ctx.fillText(fmtK(tot),x,minY-5);
+        ctx.restore();
+      });
+    }
+  };
   if(chartHist)chartHist.destroy();
-  chartHist=new Chart(document.getElementById("chartHistorico"),{type:"bar",data:{labels:periodos,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"bottom",labels:{font:{size:11},boxWidth:10,padding:12}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+fmt(ctx.raw)}}},scales:{x:{stacked:true,ticks:{autoSkip:false,maxRotation:45,font:{size:10}},grid:{display:false}},y:{stacked:true,ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:"#f1f5f9"}}}}});
+  chartHist=new Chart(document.getElementById("chartHistorico"),{
+    type:'bar', plugins:[stackLabel],
+    data:{labels:periodos,datasets:allDs},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:22}},
+      plugins:{
+        legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.raw)}}
+      },
+      scales:{
+        x:{stacked:true,ticks:{autoSkip:false,maxRotation:45,font:{size:10}},grid:{display:false}},
+        y:{stacked:true,ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:'#f1f5f9'}}
+      }
+    }
+  });
+  // Tabla mensual con total y delta
+  const deltas=totales.map((v,i)=>i===0?null:totales[i-1]?((v-totales[i-1])/totales[i-1]*100):null);
+  document.getElementById("histTotalesBody").innerHTML=[...periodos].reverse().map((p,j)=>{
+    const i=periodos.length-1-j;
+    const d=deltas[i];
+    const dStr=d===null?'—':d>0?"<span class='pill pill-up'>↑"+Math.abs(d).toFixed(0)+"%</span>":"<span class='pill pill-down'>↓"+Math.abs(d).toFixed(0)+"%</span>";
+    return"<tr><td>"+p+"</td><td style='text-align:right;font-weight:700'>"+fmt(totales[i])+"</td><td style='text-align:right'>"+dStr+"</td></tr>";
+  }).join("");
+  // Top proveedores
   const byProv=sumarPorProv(data);
   const sorted=Object.entries(byProv).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  const h=Math.max(280,sorted.length*38+60);document.getElementById("wrapProv").style.height=h+"px";
+  const h=Math.max(280,sorted.length*38+60);
+  document.getElementById("wrapProv").style.height=h+"px";
   if(chartProv2)chartProv2.destroy();
   chartProv2=new Chart(document.getElementById("chartProv"),{type:"bar",data:{labels:sorted.map(e=>e[0]),datasets:[{data:sorted.map(e=>Math.round(e[1])),backgroundColor:"#378ADD",borderRadius:5,borderSkipped:false}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},scales:{x:{ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:"#f1f5f9"}},y:{ticks:{font:{size:12}},grid:{display:false}}}}});
 }

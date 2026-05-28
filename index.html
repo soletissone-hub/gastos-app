@@ -171,6 +171,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .mov-dot.ok{background:#22c55e;}
 .mov-dot.pend{background:#f59e0b;}
 .mov-count{padding:10px 14px;font-size:12px;color:#64748b;border-bottom:1px solid #f1f5f9;}
+.mov-row{cursor:pointer;}
+.mov-row:active{background:#f0f6ff;}
+.mov-edit{background:#f8fafc;border-top:1px solid #e2e8f0;padding:12px 14px;}
+.mov-edit select{width:100%;font-size:12px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;margin-top:2px;background:#fff;}
+.mov-edit-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.mov-chip{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid #e2e8f0;background:#f8fafc;color:#1a1a1a;}
+.mov-chip.active{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8;}
 
 /* ── Spinner ── */
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;}
@@ -800,6 +807,8 @@ function renderHistorico(){
 }
 
 // ── Movimientos ───────────────────────────────────────────────────────────────
+let _movData = [];
+
 function renderMovimientos(){
   if(!allData.length) return;
   const medioFil=document.getElementById("filtroMedioMov").value;
@@ -809,16 +818,16 @@ function renderMovimientos(){
   if(medioFil!=="todos") data=data.filter(r=>(r["Medio_Pago"]||"")===medioFil);
   if(personaFil!=="todos") data=data.filter(r=>(r["Persona"]||"")===personaFil);
   if(periodoFil!=="todos") data=data.filter(r=>getPeriodo(r)===periodoFil);
-  // Ordenar más reciente primero
   data.sort((a,b)=>{
     const fa=new Date(a["Fecha_Pago"]||a["Fecha_Registro"]||0);
     const fb=new Date(b["Fecha_Pago"]||b["Fecha_Registro"]||0);
     return fb-fa;
   });
-  const MAX=300, shown=data.slice(0,MAX);
+  const MAX=300;
+  _movData=data.slice(0,MAX);
   const cnt=document.getElementById("movCount");
-  if(cnt) cnt.textContent=data.length+" movimientos"+(data.length>MAX?" · mostrando últimos "+MAX:"");
-  document.getElementById("movBody").innerHTML=shown.map(r=>{
+  if(cnt) cnt.textContent=data.length+" movimientos"+(data.length>MAX?" · mostrando últimos "+MAX:"")+" · tocá un gasto para editar";
+  document.getElementById("movBody").innerHTML=_movData.map((r,idx)=>{
     const fecha=r["Fecha_Pago"]||r["Fecha_Registro"]||"";
     const dd=fecha?fecha.slice(8,10)+"/"+fecha.slice(5,7):"—";
     const prov=r["Proveedor"]||"";
@@ -830,7 +839,7 @@ function renderMovimientos(){
     const esRev=r["Revisar"]===true||String(r["Revisar"]).toUpperCase()==="TRUE";
     const dotCls=esRev?"pend":"ok";
     const tag=[medio,persona].filter(Boolean).join(" · ");
-    return"<div class='mov-row'>"+
+    return"<div class='mov-row' onclick='toggleEditMov("+idx+")'>"+
       "<div class='mov-fecha'>"+dd+"</div>"+
       "<div class='mov-desc'>"+
         "<div class='mov-prov'>"+(prov||det||"Sin detalle")+"</div>"+
@@ -838,9 +847,88 @@ function renderMovimientos(){
       "<div class='mov-right'>"+
         "<div class='mov-monto'>"+fmt(monto)+"</div>"+
         "<div class='mov-tag'>"+tag+(cat?" · "+cat:"")+"</div></div>"+
-      "<div class='mov-dot "+dotCls+"' title='"+(esRev?"Pendiente clasificar":"Clasificado")+"'></div>"+
-    "</div>";
+      "<div class='mov-dot "+dotCls+"'></div>"+
+    "</div>"+
+    "<div id='medit-"+idx+"' class='mov-edit' style='display:none' onclick='event.stopPropagation()'></div>";
   }).join("");
+}
+
+function toggleEditMov(idx){
+  const el=document.getElementById("medit-"+idx);
+  if(!el) return;
+  if(el.style.display!=="none"){el.style.display="none";return;}
+  const r=_movData[idx];
+  if(!r) return;
+  const curProv=r["Proveedor"]||"";
+  const curCat=r["Categoria"]||"";
+  const curHogar=r["Hogar"]||"";
+  const provOpts='<option value="">Sin proveedor</option>'+
+    proveedoresSheet.map(p=>'<option value="'+p+'"'+(p===curProv?' selected':'')+'>'+p+'</option>').join('')+
+    '<option value="_nuevo">+ Nuevo...</option>';
+  const catOpts=CATEGORIAS.map(c=>'<option value="'+c+'"'+(c===curCat?' selected':'')+'>'+c+'</option>').join('');
+  const hogarChips=HOGARES.map(h=>'<button class="mov-chip'+(curHogar===h.key?' active':'')+
+    '" onclick="setHogarMov('+idx+',\''+h.key+'\')" style="'+(curHogar===h.key?'background:'+h.color+';border-color:'+h.border+';color:#1d4ed8':'')+
+    '">'+h.label+'</button>').join('');
+  el.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'+
+    '<div><label style="font-size:11px;color:#64748b;font-weight:600">Proveedor</label>'+
+    '<select id="mprov-'+idx+'" onchange="onMovProvChange('+idx+',this)">'+provOpts+'</select></div>'+
+    '<div><label style="font-size:11px;color:#64748b;font-weight:600">Categoría</label>'+
+    '<select id="mcat-'+idx+'">'+catOpts+'</select></div></div>'+
+    '<div style="margin-bottom:10px"><label style="font-size:11px;color:#64748b;font-weight:600">Hogar</label>'+
+    '<div id="mhogar-'+idx+'" class="mov-edit-chips">'+hogarChips+'</div>'+
+    '<input type="hidden" id="mhogarval-'+idx+'" value="'+curHogar+'"></div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="saveMov('+idx+')" style="background:#1d4ed8;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Guardar</button>'+
+    '<button onclick="document.getElementById(\'medit-'+idx+'\').style.display=\'none\'" style="background:#f1f5f9;color:#64748b;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer">Cancelar</button>'+
+    '</div>';
+  el.style.display='block';
+}
+
+function onMovProvChange(idx,sel){
+  if(sel.value==='_nuevo'){
+    const n=prompt('Nombre del nuevo proveedor:');
+    if(n&&n.trim()){
+      sel.innerHTML+='<option value="'+n.trim()+'" selected>'+n.trim()+'</option>';
+      sel.value=n.trim();
+    } else sel.value='';
+  }
+}
+
+function setHogarMov(idx,val){
+  document.getElementById('mhogarval-'+idx).value=val;
+  const chips=document.getElementById('mhogar-'+idx).querySelectorAll('.mov-chip');
+  chips.forEach(c=>{
+    const isActive=c.textContent.trim()===HOGARES.find(h=>h.key===val)?.label;
+    const h=HOGARES.find(hh=>hh.label===c.textContent.trim());
+    c.className='mov-chip'+(isActive?' active':'');
+    c.style=isActive&&h?'background:'+h.color+';border-color:'+h.border+';color:#1d4ed8':'';
+  });
+}
+
+async function saveMov(idx){
+  const r=_movData[idx];
+  if(!r){alert('Sin datos.');return;}
+  const gmailId=r["Gmail_ID"]||"";
+  if(!gmailId){alert('Sin Gmail ID — editá directo en la planilla.');return;}
+  const prov=document.getElementById('mprov-'+idx).value;
+  const cat=document.getElementById('mcat-'+idx).value;
+  const hogar=document.getElementById('mhogarval-'+idx).value;
+  const btn=document.querySelector('#medit-'+idx+' button');
+  btn.disabled=true;btn.textContent='⏳ Guardando...';
+  try{
+    const res=await apiGet({action:'clasificar',gmailId,proveedor:prov==='_nuevo'?'':prov,categoria:cat,hogar,destinatario:r["Destinatario"]||'',guardarEnMapeo:'false'});
+    if(!res.ok) throw new Error(res.error||'Error');
+    // Actualizar datos locales
+    r["Proveedor"]=prov==='_nuevo'?'':prov;
+    r["Categoria"]=cat;
+    r["Hogar"]=hogar;
+    r["Revisar"]=false;
+    btn.textContent='✅ Guardado';
+    setTimeout(()=>{document.getElementById('medit-'+idx).style.display='none';},1000);
+  }catch(e){
+    btn.disabled=false;btn.textContent='Guardar';
+    alert('Error: '+e.message);
+  }
 }
 
 // ── Por proveedor ─────────────────────────────────────────────────────────────

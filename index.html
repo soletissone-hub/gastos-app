@@ -459,7 +459,7 @@ const HOGARES = ["SMDT","Mendoza","Bella Vista","General"];
 const PALETTE = Object.values(CAT_COLORS);
 const catFallback = {"Agua":"Recurrente","ARBA":"Impuesto","Colegio Santa Teresa":"Educacion","Empleada domestica":"Recurrente","Edenor":"Servicio","Expensas":"Servicio","Flow":"Servicio","Impuestos Tigre":"Impuesto","Jardin Santa Cecilia":"Educacion","Jardin Ta te ti":"Educacion","Jardinero":"Recurrente","Lucia":"Recurrente","Movistar":"Servicio","Monotributo":"Impuesto","Naturgy":"Servicio","Patente Autos":"Impuesto","Paseador":"Recurrente","Piletero":"Recurrente","Salidas":"Variable","Seguros Auto":"Servicio","Supermercado":"Supermercado","Verduleria":"Variable"};
 
-let allData = [], proveedoresSheet = [], provCatMap = {};
+let allData = [], proveedoresSheet = [], allProveedores = [], provCatMap = {};
 let chartCatA, chartCatAnt, chartVsProm, chartHist, chartProv2, chartProvEvol;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -507,15 +507,30 @@ async function init() {
     sub.textContent = 'Procesando ' + datos.length + ' registros...';
     await new Promise(r => setTimeout(r, 30));
     allData = datos.filter(r => { const p = getPeriodo(r); return p.startsWith("2025") || p.startsWith("2026"); });
-    proveedoresSheet = [...new Set(allData.filter(r => !esInterno(r)).map(r => r["Proveedor"]).filter(Boolean))].sort();
+
+    // proveedoresSheet = SOLO lista oficial (de la hoja PROVEEDORES) + catFallback
+    // No incluye merchants transaccionales como ZARA, YPF, *2006 SA*, etc.
+    proveedoresSheet = [];
     if (Array.isArray(provs)) {
       provs.forEach(p => {
         if (p.nombre && !proveedoresSheet.includes(p.nombre)) proveedoresSheet.push(p.nombre);
         if (p.nombre && p.categoria) provCatMap[p.nombre] = p.categoria;
       });
     }
-    Object.entries(catFallback).forEach(([k,v]) => { if (!provCatMap[k]) provCatMap[k] = v; });
+    Object.entries(catFallback).forEach(([k,v]) => {
+      if (!proveedoresSheet.includes(k)) proveedoresSheet.push(k);
+      if (!provCatMap[k]) provCatMap[k] = v;
+    });
     proveedoresSheet.sort();
+
+    // allProveedores = proveedores que aparecen 2+ veces (para análisis en "Por proveedor")
+    // Filtra merchants de una sola compra pero muestra proveedores recurrentes
+    const frecuencia = {};
+    allData.filter(r => !esInterno(r)).forEach(r => { const p = r["Proveedor"]; if (p) frecuencia[p] = (frecuencia[p]||0)+1; });
+    allProveedores = [...new Set([
+      ...proveedoresSheet,
+      ...Object.keys(frecuencia).filter(p => frecuencia[p] >= 2)
+    ])].sort();
     initFilters();
     document.getElementById("headerPeriodo").textContent = "Período actual: " + getPeriodoActual(allData);
     const hoy = new Date(), pad = n => String(n).padStart(2,"0");
@@ -576,8 +591,9 @@ function initFilters() {
   selC.innerHTML = "<option value='todas'>Todas</option>";
   cats.forEach(c => { const o = document.createElement("option"); o.value=c; o.textContent=c; selC.appendChild(o); });
   const selP = document.getElementById("filtroProvEvol");
-  selP.innerHTML = "<option value=''>Elegir...</option>";
-  proveedoresSheet.forEach(p => { const o = document.createElement("option"); o.value=p; o.textContent=p; selP.appendChild(o); });
+  selP.innerHTML = "<option value=''>Elegir proveedor...</option>";
+  // Usar allProveedores: lista oficial + los que aparecen 2+ veces (excluye merchants de una sola vez)
+  allProveedores.forEach(p => { const o = document.createElement("option"); o.value=p; o.textContent=p; selP.appendChild(o); });
 }
 
 // ── Análisis ──────────────────────────────────────────────────────────────────

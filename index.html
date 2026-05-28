@@ -801,7 +801,8 @@ function renderClasificar(){
   if(filtro==="santander")rows=rows.filter(r=>r["Origen"]==="Santander");
   // Ordenar de más reciente a más antiguo
   rows.sort((a,b)=>{
-    const fa=new Date(a["Fecha"]||a["Periodo"]||0), fb=new Date(b["Fecha"]||b["Periodo"]||0);
+    const fa=new Date(a["Fecha_Pago"]||a["Fecha_Registro"]||a["Periodo"]||0);
+    const fb=new Date(b["Fecha_Pago"]||b["Fecha_Registro"]||b["Periodo"]||0);
     return fb-fa;
   });
   const container=document.getElementById("pendList");

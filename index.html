@@ -508,8 +508,9 @@ async function init() {
     await new Promise(r => setTimeout(r, 30));
     allData = datos.filter(r => { const p = getPeriodo(r); return p.startsWith("2025") || p.startsWith("2026"); });
 
-    // proveedoresSheet = SOLO lista oficial (de la hoja PROVEEDORES) + catFallback
-    // No incluye merchants transaccionales como ZARA, YPF, *2006 SA*, etc.
+    // proveedoresSheet = SOLO los que guardaste en la hoja PROVEEDORES
+    // (los que clasificaste y guardaste con "Guardar en mapeo")
+    // catFallback solo alimenta provCatMap para sugerencias de categoría, NO el dropdown
     proveedoresSheet = [];
     if (Array.isArray(provs)) {
       provs.forEach(p => {
@@ -517,20 +518,13 @@ async function init() {
         if (p.nombre && p.categoria) provCatMap[p.nombre] = p.categoria;
       });
     }
-    Object.entries(catFallback).forEach(([k,v]) => {
-      if (!proveedoresSheet.includes(k)) proveedoresSheet.push(k);
-      if (!provCatMap[k]) provCatMap[k] = v;
-    });
+    // catFallback: solo para mapeo de categorías, no agrega al listado de proveedores
+    Object.entries(catFallback).forEach(([k,v]) => { if (!provCatMap[k]) provCatMap[k] = v; });
     proveedoresSheet.sort();
 
-    // allProveedores = proveedores que aparecen 2+ veces (para análisis en "Por proveedor")
-    // Filtra merchants de una sola compra pero muestra proveedores recurrentes
-    const frecuencia = {};
-    allData.filter(r => !esInterno(r)).forEach(r => { const p = r["Proveedor"]; if (p) frecuencia[p] = (frecuencia[p]||0)+1; });
-    allProveedores = [...new Set([
-      ...proveedoresSheet,
-      ...Object.keys(frecuencia).filter(p => frecuencia[p] >= 2)
-    ])].sort();
+    // allProveedores (tab "Por proveedor"): igual que proveedoresSheet
+    // Son los mismos — solo los que estandarizaste
+    allProveedores = [...proveedoresSheet];
     initFilters();
     document.getElementById("headerPeriodo").textContent = "Período actual: " + getPeriodoActual(allData);
     const hoy = new Date(), pad = n => String(n).padStart(2,"0");
@@ -755,12 +749,12 @@ function guardarGastoManual(){
 
 // ── Classify ──────────────────────────────────────────────────────────────────
 function buildProvSelect(id,val){
-  // Solo mostrar proveedores del listado oficial. Si el valor actual no está en la lista
-  // (ej: "ZARA", "YPF") NO lo preseleccionamos — el usuario debe elegir uno.
-  const ops=[...proveedoresSheet];
-  const valInList=val&&ops.includes(val)&&val!=="Transferencia MP";
+  // Select con solo proveedores estandarizados (hoja PROVEEDORES)
+  const valInList=val&&proveedoresSheet.includes(val)&&val!=="Transferencia MP";
   const placeholder="<option value='' disabled"+(valInList?"":" selected")+">Elegir proveedor...</option>";
-  return"<select id='"+id+"' onchange='onProvChange(this,\""+id+"\")'>"+placeholder+ops.map(p=>"<option value='"+p+"'"+(p===val&&valInList?" selected":"")+">"+p+"</option>").join("")+"<option value='_nuevo'>+ Agregar nuevo...</option></select>";
+  return"<select id='"+id+"' onchange='onProvChange(this,\""+id+"\")'>"+placeholder+
+    proveedoresSheet.map(p=>"<option value='"+p+"'"+(p===val&&valInList?" selected":"")+">"+p+"</option>").join("")+
+    "<option value='_nuevo'>+ Agregar nuevo...</option></select>";
 }
 function buildCatPicker(idx,selectedCat){
   const btns=CATEGORIAS.map(c=>{
@@ -787,6 +781,7 @@ function selectHogar(idx,hogar){
   HOGARES.forEach((h,i)=>{const btns=row.querySelectorAll(".hogar-pick-btn");if(h===hogar&&btns[i])btns[i].classList.add("selected");});
 }
 function onProvChange(sel,id){
+  // Compatibilidad con código viejo (form Agregar usa select)
   const idx=id.split("-")[1];
   if(sel.value==="_nuevo"){
     const inp=document.createElement("input");inp.type="text";inp.id=id;inp.placeholder="Escribí el rubro...";inp.setAttribute("data-nuevo","true");

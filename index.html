@@ -1086,12 +1086,12 @@ Respondé SOLO con JSON válido, sin texto extra:
 {"categoria":"...", "proveedor":"...", "confianza":"alta|media|baja"}`;
 
   try {
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.1,maxOutputTokens:120}})
     });
-    if (!resp.ok) throw new Error('Gemini HTTP ' + resp.status);
+    if (!resp.ok) throw new Error(resp.status===429?'Límite de uso alcanzado, esperá 1 minuto y reintentá':'Gemini HTTP '+resp.status);
     const data = await resp.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const match = text.match(/\{[\s\S]*\}/);

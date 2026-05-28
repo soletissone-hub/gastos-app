@@ -89,6 +89,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .pend-item.guardado{border-color:#22c55e;background:#f0fdf4;}
 .pend-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
 .pend-periodo{font-size:11px;color:#94a3b8;background:#f8fafc;padding:2px 8px;border-radius:4px;font-weight:600;}
+.pend-fecha{font-size:12px;color:#1d4ed8;background:#eff6ff;padding:2px 8px;border-radius:4px;font-weight:700;white-space:nowrap;}
 .pend-dest{font-weight:700;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0f172a;}
 .pend-monto{font-size:17px;font-weight:800;color:#1d4ed8;white-space:nowrap;}
 .pend-detalle{font-size:11px;color:#94a3b8;margin-bottom:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -738,9 +739,12 @@ function guardarGastoManual(){
 
 // ── Classify ──────────────────────────────────────────────────────────────────
 function buildProvSelect(id,val){
+  // Solo mostrar proveedores del listado oficial. Si el valor actual no está en la lista
+  // (ej: "ZARA", "YPF") NO lo preseleccionamos — el usuario debe elegir uno.
   const ops=[...proveedoresSheet];
-  if(val&&!ops.includes(val)&&val!=="Transferencia MP")ops.unshift(val);
-  return"<select id='"+id+"' onchange='onProvChange(this,\""+id+"\")'>"+ops.map(p=>"<option value='"+p+"' "+(p===val?"selected":"")+">"+p+"</option>").join("")+"<option value='_nuevo'>+ Agregar nuevo...</option></select>";
+  const valInList=val&&ops.includes(val)&&val!=="Transferencia MP";
+  const placeholder="<option value='' disabled"+(valInList?"":" selected")+">Elegir proveedor...</option>";
+  return"<select id='"+id+"' onchange='onProvChange(this,\""+id+"\")'>"+placeholder+ops.map(p=>"<option value='"+p+"'"+(p===val&&valInList?" selected":"")+">"+p+"</option>").join("")+"<option value='_nuevo'>+ Agregar nuevo...</option></select>";
 }
 function buildCatPicker(idx,selectedCat){
   const btns=CATEGORIAS.map(c=>{
@@ -795,14 +799,20 @@ function renderClasificar(){
     const gmailId=String(r["Gmail_ID"]||""),dest=String(r["Destinatario"]||"");
     const monto=parseMonto(r["Monto"]),periodo=getPeriodo(r),detalle=String(r["Detalle"]||"").slice(0,90);
     const provActual=String(r["Proveedor"]||""),catActual=String(r["Categoria"]||"Variable"),hogarActual=String(r["Hogar"]||"SMDT");
+    const persona=String(r["Persona"]||"");
     const esTransf=r["Tipo_MP"]==="Transferencia"||provActual.includes("Transferencia"),esSant=r["Origen"]==="Santander";
     const catAuto=provCatMap[provActual]||"",catInit=catAuto||catActual;
-    const medioBadge=esSant?"<span class='medio-badge medio-visa'>Visa</span>":esTransf?"<span class='medio-badge medio-mp'>MP</span>":"";
+    // Badge con medio Y persona (ej: "Visa Tomi", "MP Sole")
+    const personaSuf=persona?" "+persona:"";
+    const medioBadge=esSant?"<span class='medio-badge medio-visa'>Visa"+personaSuf+"</span>":esTransf?"<span class='medio-badge medio-mp'>MP"+personaSuf+"</span>":persona?"<span class='medio-badge'>"+persona+"</span>":"";
+    // Fecha exacta del gasto
+    const fechaRaw=r["Fecha_Pago"]||r["Fecha_Registro"]||"";
+    const fechaStr=fechaRaw?fechaRaw.slice(8,10)+"/"+fechaRaw.slice(5,7)+"/"+fechaRaw.slice(0,4):"";
     const gIdSafe=gmailId.replace(/\\/g,'\\\\').replace(/"/g,'\\"'),destSafe=dest.replace(/\\/g,'\\\\').replace(/"/g,'\\"');
     const detSafe=detalle.replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/'/g,"\\'");
     return`<div class='pend-item' id='item-${idx}'>
       <div class='pend-header'>
-        <span class='pend-periodo'>${periodo}</span>
+        <span class='pend-fecha'>${fechaStr||periodo}</span>
         <span class='pend-dest' title='${dest||provActual}'>${dest||provActual||"Sin dest."}</span>
         ${medioBadge}
         <span class='pend-monto'>${monto?fmt(monto):"<span class='no-monto'>sin monto</span>"}</span>

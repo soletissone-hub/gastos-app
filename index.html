@@ -372,21 +372,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
         <span class="ss-icon">🔔</span>
         <h3>Notificaciones en el celular</h3>
       </div>
-      <p class="ss-desc">Recibís una notificación automática cuando entran nuevos gastos para clasificar. Usa la app <strong>ntfy</strong> (gratis, iOS y Android).</p>
-      <ol class="steps-list">
-        <li><span class="step-num">1</span> Instalá <strong>ntfy.sh</strong> en tu celular (App Store / Google Play)</li>
-        <li><span class="step-num">2</span> Elegí un nombre único para tu canal (ej: <code>gastos-sole-2026</code>)</li>
-        <li><span class="step-num">3</span> En la app ntfy, subscríbete a ese canal</li>
-        <li><span class="step-num">4</span> Guardá el canal acá y vas a recibir notificaciones automáticas</li>
-      </ol>
-      <div class="setting-row">
-        <div class="form-group"><label>Nombre del canal ntfy</label><input type="text" id="ntfyTopicInput" placeholder="gastos-sole-2026"></div>
-        <button class="btn-primary" onclick="saveNotifTopic()" style="margin-bottom:1px">Activar</button>
-      </div>
-      <div id="notifStatus" class="notif-status none">Sin configurar</div>
-      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <p class="ss-desc">Recibís un <strong>email automático</strong> cuando entran nuevos gastos para clasificar. El aviso llega como notificación push a través de la app de Gmail en tu celular.</p>
+      <div id="notifStatus" class="notif-status ok">✓ Activo — las notificaciones se envían por email a tu cuenta de Gmail</div>
+      <div style="margin-top:12px">
         <button class="btn-secondary" onclick="testNotif()">🔔 Probar notificación</button>
-        <a href="https://ntfy.sh" target="_blank" class="btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center">Abrir ntfy.sh →</a>
       </div>
     </div>
 
@@ -945,7 +934,7 @@ Respondé SOLO con JSON válido, sin texto extra:
   }
 }
 
-// ── Notifications (ntfy.sh) ───────────────────────────────────────────────────
+// ── Notificaciones / Config ───────────────────────────────────────────────────
 function loadConfigStatus() {
   // Gemini
   const gKey = localStorage.getItem('gemini_key');
@@ -954,15 +943,6 @@ function loadConfigStatus() {
   if (gKey) {
     if (gStatus) { gStatus.className = 'notif-status ok'; gStatus.textContent = '✓ Clave configurada'; }
     if (gInput) gInput.placeholder = '••••••••••• (guardada)';
-  }
-  // ntfy
-  const topic = localStorage.getItem('ntfy_topic');
-  const nStatus = document.getElementById('notifStatus');
-  const nInput = document.getElementById('ntfyTopicInput');
-  if (topic && nStatus) {
-    nStatus.className = 'notif-status ok';
-    nStatus.innerHTML = '✓ Canal activo: <span class="topic-display">' + topic + '</span>';
-    if (nInput) nInput.value = topic;
   }
 }
 
@@ -976,30 +956,12 @@ function saveGeminiKey() {
   inp.value = ''; inp.placeholder = '••••••••••• (guardada)';
 }
 
-async function saveNotifTopic() {
-  const inp = document.getElementById('ntfyTopicInput');
-  const topic = inp ? inp.value.trim() : '';
-  if (!topic) { alert('Escribí el nombre de tu canal ntfy.'); return; }
-  if (!/^[a-zA-Z0-9_-]+$/.test(topic)) { alert('Usá solo letras, números, guión (-) y guión bajo (_).'); return; }
-  localStorage.setItem('ntfy_topic', topic);
-  const st = document.getElementById('notifStatus');
-  if (st) { st.className = 'notif-status pending'; st.textContent = '⏳ Guardando en el servidor...'; }
-  try {
-    const res = await apiGet({action: 'setNotifTopic', topic});
-    if (st) { st.className = 'notif-status ok'; st.innerHTML = '✓ Canal activo: <span class="topic-display">' + topic + '</span>'; }
-  } catch(e) {
-    if (st) { st.className = 'notif-status pending'; st.textContent = '⚠ Guardado local. Error servidor: ' + e.message; }
-  }
-}
-
 async function testNotif() {
-  const topic = localStorage.getItem('ntfy_topic');
-  if (!topic) { alert('Primero configurá tu canal ntfy.'); return; }
   const btn = event.target; btn.disabled = true; btn.textContent = '⏳ Enviando...';
   try {
     const res = await apiGet({action: 'testNotif'});
-    btn.textContent = '✓ Enviado!';
-    setTimeout(() => { btn.disabled = false; btn.textContent = '🔔 Probar notificación'; }, 3000);
+    btn.textContent = '✓ Email enviado!';
+    setTimeout(() => { btn.disabled = false; btn.textContent = '🔔 Probar notificación'; }, 4000);
   } catch(e) {
     btn.disabled = false; btn.textContent = '🔔 Probar notificación';
     alert('Error: ' + e.message);

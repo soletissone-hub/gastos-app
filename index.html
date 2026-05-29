@@ -328,6 +328,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
       </table>
     </div>
     <div class="card"><div class="card-title">Top 10 proveedores</div><div id="wrapProv" style="position:relative;height:320px"><canvas id="chartProv"></canvas></div></div>
+    <div class="card"><div class="card-title">Evolución mensual por medio de pago</div><div class="chart-wrap tall"><canvas id="chartMedPago"></canvas></div></div>
   </div>
 
   <!-- ─── POR PROVEEDOR ────────────────────────────── -->
@@ -500,7 +501,7 @@ const PALETTE = Object.values(CAT_COLORS);
 const catFallback = {"Agua":"Recurrente","ARBA":"Impuesto","Colegio Santa Teresa":"Educacion","Empleada domestica":"Recurrente","Edenor":"Servicio","Expensas":"Servicio","Flow":"Servicio","Impuestos Tigre":"Impuesto","Jardin Santa Cecilia":"Educacion","Jardin Ta te ti":"Educacion","Jardinero":"Recurrente","Lucia":"Recurrente","Movistar":"Servicio","Monotributo":"Impuesto","Naturgy":"Servicio","Patente Autos":"Impuesto","Paseador":"Recurrente","Piletero":"Recurrente","Salidas":"Variable","Seguros Auto":"Servicio","Supermercado":"Supermercado","Verduleria":"Variable"};
 
 let allData = [], proveedoresSheet = [], allProveedores = [], provCatMap = {};
-let chartCatA, chartCatAnt, chartVsProm, chartHist, chartProv2, chartProvEvol;
+let chartCatA, chartCatAnt, chartVsProm, chartHist, chartProv2, chartProvEvol, chartMedPago;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function parseMonto(v){if(v===null||v===undefined||v==="")return null;if(typeof v==="number")return isFinite(v)&&v>0?v:null;const s=String(v).trim().replace(/\s/g,"").replace("$","");if(!s)return null;let n;if(s.includes(",")&&s.includes("."))n=parseFloat(s.replace(/\./g,"").replace(",","."));else if(s.includes(","))n=parseFloat(s.replace(",","."));else if(s.includes(".")){const p=s.split(".");n=p[p.length-1].length<=2?parseFloat(s):parseFloat(s.replace(/\./g,""));}else n=parseFloat(s);return(n&&isFinite(n)&&n>0)?n:null;}
@@ -580,8 +581,8 @@ async function init() {
 
 async function recargar() {
   document.getElementById("spinnerBtn").style.display = "inline-block";
-  [chartCatA,chartCatAnt,chartVsProm,chartHist,chartProv2,chartProvEvol].forEach(c=>{try{if(c)c.destroy();}catch(_){}});
-  chartCatA=chartCatAnt=chartVsProm=chartHist=chartProv2=chartProvEvol=null;
+  [chartCatA,chartCatAnt,chartVsProm,chartHist,chartProv2,chartProvEvol,chartMedPago].forEach(c=>{try{if(c)c.destroy();}catch(_){}});
+  chartCatA=chartCatAnt=chartVsProm=chartHist=chartProv2=chartProvEvol=chartMedPago=null;
   await init();
   document.getElementById("spinnerBtn").style.display = "none";
 }
@@ -796,6 +797,60 @@ function renderHistorico(){
   document.getElementById("wrapProv").style.height=h+"px";
   if(chartProv2)chartProv2.destroy();
   chartProv2=new Chart(document.getElementById("chartProv"),{type:"bar",data:{labels:sorted.map(e=>e[0]),datasets:[{data:sorted.map(e=>Math.round(e[1])),backgroundColor:"#378ADD",borderRadius:5,borderSkipped:false}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},scales:{x:{ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:"#f1f5f9"}},y:{ticks:{font:{size:12}},grid:{display:false}}}}});
+
+  // ── Gráfico por medio de pago ─────────────────────────────────────────────
+  const MEDIO_COLORS={
+    'MercadoPago':'#009ee3','Visa 7731':'#6366f1','Visa 5520':'#8b5cf6',
+    'Banco':'#64748b','Efectivo':'#16a34a','Manual':'#f59e0b','Otro':'#94a3b8'
+  };
+  function normalizarMedio(m){
+    const s=String(m||'').trim();
+    if(s.toLowerCase().includes('mercado pago')||s.toLowerCase().includes('mercadopago')) return 'MercadoPago';
+    if(s.includes('7731')) return 'Visa 7731';
+    if(s.includes('5520')) return 'Visa 5520';
+    if(s.toLowerCase()==='banco'||s.toLowerCase().includes('transferencia')) return 'Banco';
+    if(s.toLowerCase()==='efectivo') return 'Efectivo';
+    if(s.toLowerCase()==='manual') return 'Manual';
+    if(!s) return 'Otro';
+    return s.slice(0,20);
+  }
+  // Agrupar: {medio: {periodo: total}}
+  const medMap={};
+  data.forEach(r=>{
+    const med=normalizarMedio(r['Medio_Pago']);
+    const per=getPeriodo(r);
+    if(!per) return;
+    if(!medMap[med]) medMap[med]={};
+    medMap[med][per]=(medMap[med][per]||0)+(parseMonto(r['Monto'])||0);
+  });
+  const medios=Object.keys(medMap).sort((a,b)=>{
+    const ta=Object.values(medMap[a]).reduce((s,v)=>s+v,0);
+    const tb=Object.values(medMap[b]).reduce((s,v)=>s+v,0);
+    return tb-ta;
+  });
+  const medDs=medios.map((med,mi)=>({
+    label:med,
+    data:periodos.map(p=>Math.round(medMap[med][p]||0)),
+    backgroundColor:MEDIO_COLORS[med]||`hsl(${mi*47%360},60%,55%)`,
+    stack:'med'
+  }));
+  if(chartMedPago) chartMedPago.destroy();
+  chartMedPago=new Chart(document.getElementById('chartMedPago'),{
+    type:'bar',
+    data:{labels:periodos, datasets:medDs},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:10}},
+      plugins:{
+        legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.raw)}}
+      },
+      scales:{
+        x:{stacked:true,ticks:{autoSkip:false,maxRotation:45,font:{size:10}},grid:{display:false}},
+        y:{stacked:true,ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:'#f1f5f9'}}
+      }
+    }
+  });
 }
 
 // ── Movimientos ───────────────────────────────────────────────────────────────

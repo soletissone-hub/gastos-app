@@ -328,7 +328,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
       </table>
     </div>
     <div class="card"><div class="card-title">Top 10 proveedores</div><div id="wrapProv" style="position:relative;height:320px"><canvas id="chartProv"></canvas></div></div>
-    <div class="card"><div class="card-title">Evolución mensual por medio de pago</div><div class="chart-wrap tall"><canvas id="chartMedPago"></canvas></div></div>
+    <div class="card"><div class="card-title">Evolución mensual por medio de pago</div><div id="medPagoFiltros" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div><div class="chart-wrap tall"><canvas id="chartMedPago"></canvas></div></div>
   </div>
 
   <!-- ─── POR PROVEEDOR ────────────────────────────── -->
@@ -502,6 +502,9 @@ const catFallback = {"Agua":"Recurrente","ARBA":"Impuesto","Colegio Santa Teresa
 
 let allData = [], proveedoresSheet = [], allProveedores = [], provCatMap = {};
 let chartCatA, chartCatAnt, chartVsProm, chartHist, chartProv2, chartProvEvol, chartMedPago;
+const MEDIO_COLORS={'MercadoPago':'#009ee3','Visa 7731':'#6366f1','Visa 5520':'#8b5cf6','Banco':'#64748b','Efectivo':'#16a34a','Manual':'#f59e0b','Otro':'#94a3b8'};
+function normalizarMedio(m){const s=String(m||'').trim();if(s.toLowerCase().includes('mercado pago')||s.toLowerCase().includes('mercadopago'))return 'MercadoPago';if(s.includes('7731'))return 'Visa 7731';if(s.includes('5520'))return 'Visa 5520';if(s.toLowerCase()==='banco'||s.toLowerCase().includes('transferencia'))return 'Banco';if(s.toLowerCase()==='efectivo')return 'Efectivo';if(s.toLowerCase()==='manual')return 'Manual';if(!s)return 'Otro';return s.slice(0,20);}
+let _medPagoFiltro='todos',_medPagoState=null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function parseMonto(v){if(v===null||v===undefined||v==="")return null;if(typeof v==="number")return isFinite(v)&&v>0?v:null;const s=String(v).trim().replace(/\s/g,"").replace("$","");if(!s)return null;let n;if(s.includes(",")&&s.includes("."))n=parseFloat(s.replace(/\./g,"").replace(",","."));else if(s.includes(","))n=parseFloat(s.replace(",","."));else if(s.includes(".")){const p=s.split(".");n=p[p.length-1].length<=2?parseFloat(s):parseFloat(s.replace(/\./g,""));}else n=parseFloat(s);return(n&&isFinite(n)&&n>0)?n:null;}
@@ -799,22 +802,6 @@ function renderHistorico(){
   chartProv2=new Chart(document.getElementById("chartProv"),{type:"bar",data:{labels:sorted.map(e=>e[0]),datasets:[{data:sorted.map(e=>Math.round(e[1])),backgroundColor:"#378ADD",borderRadius:5,borderSkipped:false}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},scales:{x:{ticks:{callback:v=>fmtK(v),font:{size:11}},grid:{color:"#f1f5f9"}},y:{ticks:{font:{size:12}},grid:{display:false}}}}});
 
   // ── Gráfico por medio de pago ─────────────────────────────────────────────
-  const MEDIO_COLORS={
-    'MercadoPago':'#009ee3','Visa 7731':'#6366f1','Visa 5520':'#8b5cf6',
-    'Banco':'#64748b','Efectivo':'#16a34a','Manual':'#f59e0b','Otro':'#94a3b8'
-  };
-  function normalizarMedio(m){
-    const s=String(m||'').trim();
-    if(s.toLowerCase().includes('mercado pago')||s.toLowerCase().includes('mercadopago')) return 'MercadoPago';
-    if(s.includes('7731')) return 'Visa 7731';
-    if(s.includes('5520')) return 'Visa 5520';
-    if(s.toLowerCase()==='banco'||s.toLowerCase().includes('transferencia')) return 'Banco';
-    if(s.toLowerCase()==='efectivo') return 'Efectivo';
-    if(s.toLowerCase()==='manual') return 'Manual';
-    if(!s) return 'Otro';
-    return s.slice(0,20);
-  }
-  // Agrupar: {medio: {periodo: total}}
   const medMap={};
   data.forEach(r=>{
     const med=normalizarMedio(r['Medio_Pago']);
@@ -828,21 +815,80 @@ function renderHistorico(){
     const tb=Object.values(medMap[b]).reduce((s,v)=>s+v,0);
     return tb-ta;
   });
-  const medDs=medios.map((med,mi)=>({
+  _medPagoFiltro='todos';
+  _medPagoState={medMap,medios,periodos};
+  const filtrosEl=document.getElementById('medPagoFiltros');
+  if(filtrosEl) filtrosEl.innerHTML='<button class="mov-chip active" style="background:#eff6ff;border-color:#93c5fd;color:#1d4ed8" onclick="setMedFiltro(\'todos\')">Todos</button>'+
+    medios.map(m=>'<button class="mov-chip" onclick="setMedFiltro(\''+m.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+m+'</button>').join('');
+  renderMedPagoChart('todos');
+}
+
+function setMedFiltro(med){
+  _medPagoFiltro=med;
+  const filtrosEl=document.getElementById('medPagoFiltros');
+  if(filtrosEl) filtrosEl.querySelectorAll('.mov-chip').forEach(c=>{
+    const isAll=med==='todos'&&c.textContent.trim()==='Todos';
+    const isMed=med!=='todos'&&c.textContent.trim()===med;
+    const active=isAll||isMed;
+    c.classList.toggle('active',active);
+    c.style=active?'background:#eff6ff;border-color:#93c5fd;color:#1d4ed8':'';
+  });
+  renderMedPagoChart(med);
+}
+
+function renderMedPagoChart(filtro){
+  if(!_medPagoState) return;
+  const {medMap,medios,periodos}=_medPagoState;
+  const activeMedios=filtro==='todos'?medios:medios.filter(m=>m===filtro);
+  const medDs=activeMedios.map((med)=>({
     label:med,
     data:periodos.map(p=>Math.round(medMap[med][p]||0)),
-    backgroundColor:MEDIO_COLORS[med]||`hsl(${mi*47%360},60%,55%)`,
+    backgroundColor:MEDIO_COLORS[med]||`hsl(${medios.indexOf(med)*47%360},60%,55%)`,
     stack:'med'
   }));
+  const totalesMed=periodos.map(p=>Math.round(activeMedios.reduce((s,m)=>s+(medMap[m][p]||0),0)));
+  const deltasMed=totalesMed.map((v,i)=>i===0?null:totalesMed[i-1]?((v-totalesMed[i-1])/totalesMed[i-1]*100):null);
+  const medStackLabel={
+    id:'medStackLabel',
+    afterDatasetsDraw(ch){
+      const ctx=ch.ctx;
+      periodos.forEach((_,i)=>{
+        const tot=totalesMed[i]; if(!tot) return;
+        let minY=null;
+        medDs.forEach((_,di)=>{
+          const m=ch.getDatasetMeta(di);
+          if(m.data[i]&&m.data[i].y!==undefined&&(minY===null||m.data[i].y<minY)) minY=m.data[i].y;
+        });
+        if(minY===null) return;
+        const x=ch.getDatasetMeta(0).data[i].x;
+        const d=deltasMed[i];
+        ctx.save();
+        if(d!==null){
+          const sign=d>0?'▲':'▼';
+          const pct=sign+Math.abs(d).toFixed(0)+'%';
+          ctx.fillStyle=d>0?'#dc2626':'#16a34a';
+          ctx.font='bold 9px sans-serif';
+          ctx.textAlign='center';
+          ctx.fillText(pct,x,minY-17);
+        }
+        ctx.fillStyle='#1e40af';
+        ctx.font='bold 10px sans-serif';
+        ctx.textAlign='center';
+        ctx.fillText(fmtK(tot),x,minY-5);
+        ctx.restore();
+      });
+    }
+  };
   if(chartMedPago) chartMedPago.destroy();
   chartMedPago=new Chart(document.getElementById('chartMedPago'),{
     type:'bar',
-    data:{labels:periodos, datasets:medDs},
+    plugins:[medStackLabel],
+    data:{labels:periodos,datasets:medDs},
     options:{
-      responsive:true, maintainAspectRatio:false,
-      layout:{padding:{top:10}},
+      responsive:true,maintainAspectRatio:false,
+      layout:{padding:{top:34}},
       plugins:{
-        legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}},
+        legend:{display:activeMedios.length>1,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}},
         tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.raw)}}
       },
       scales:{
